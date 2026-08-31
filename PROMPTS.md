@@ -364,6 +364,63 @@
 
 ---
 
+### 지원자 단계 드래그 앤 드롭과 저장
+
+- 관련 요구사항: `2.3 지원자 단계 이동과 저장`
+- 작업 상태: 완료
+- 관련 커밋: 미커밋
+
+#### 주요 프롬프트
+
+> 지원자 카드 단계 변경을 드래그 앤 드롭 방식으로 개발할게
+> 사용자가 화면을 봤을 때 드래그 앤 드롭 방식이 익숙하다고 느낄 거 같아
+>
+> 먼저 드래그 앤 드롭 라이브러리 먼저 정하자
+
+주요 후속 프롬프트:
+
+- “단계 간 이동만 지원해줘”
+- “`@dnd-kit/react`은 키보드 이동도 지원하는거야?”
+- “단계 단위 키보드 이동이 좋을 거 같아 일단 먼저 드래그 앤 드롭 먼저 구현하자”
+- “드래그 할 때 컬럼 별 border 위 아래가 짤리는 이슈가 있어”
+
+#### AI가 제안한 핵심 내용
+
+- 정렬 없이 다섯 단계 컬럼 사이만 이동하는 현재 범위에는 `@dnd-kit/react` 0.5.x의 `DragDropProvider`, `useDraggable`, `useDroppable`을 사용한다.
+- dnd-kit 타입은 `ApplicantBoard`, `BoardColumn`, `DraggableApplicantCard`의 presentation adapter 안에 두고, 단계 검증은 library-independent 순수 함수로 분리한다.
+- `ContentComponent`가 주입된 Applicant API mutation을 호출하고, 저장 성공 후에만 applicant query를 무효화해 새 단계 데이터를 다시 조회한다.
+- 이번 범위에는 단계 간 포인터 이동과 저장만 포함하며, 단계 단위 키보드 이동, 낙관적 업데이트·실패 피드백, 연속 이동 경쟁 상태는 후속 범위로 남긴다.
+- 가로 스크롤 컨테이너가 컬럼 바깥쪽의 drop-target ring을 클리핑하므로, 강조를 컬럼 내부에 그리는 `ring-inset`으로 변경해 컬럼 크기와 보드 가로 스크롤을 유지한다.
+
+#### 직접 리뷰·검증한 내용
+
+| 검토·검증 대상        | 확인 방법 또는 근거                                                                                       | 결과                                                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| drag 결과 경계        | 순수 resolver와 board adapter 테스트                                                                      | 취소, source·target 누락, 없는 지원자, 잘못된 단계, 같은 단계는 무시하고 유효한 다른 단계 이동만 한 번 전달                                                |
+| mutation과 UI 동기화  | 실제 QueryClient와 주입 Applicant API를 사용한 hook·Content·App 통합 테스트                               | 저장 성공 때만 query를 무효화·재조회하고, pending 중 중복 요청과 실패 후 재조회·화면 이동을 방지                                                           |
+| 새 API graph 영속성   | 같은 in-memory `ApplicantStorage`와 고정 성공 behavior 위에서 API를 재생성해 전체 목록 대조               | 대상 한 명만 새 단계로 유지되고 다른 모든 지원자는 변경되지 않음                                                                                           |
+| 데스크톱 포인터 drag  | 1280×720 in-app browser에서 `서류검토`의 김민지를 `면접`으로 실제 drag하고 DOM·class를 확인               | hover 중 `ring-2 ring-blue-500 ring-offset-2`, 성공 후 목적지에 한 번만 표시, 현재 단계 `면접`, 다른 네 명의 단계 유지                                     |
+| 새로고침 영속성       | 성공 상태에서 실제 page reload 후 다섯 컬럼 전체를 재확인                                                 | 김민지가 `면접`에 한 번만 유지되고 나머지 네 명의 단계도 유지                                                                                              |
+| 좁은 화면 스크롤·drag | 390×844에서 body·board 치수 측정, 보드를 `scrollLeft 220`까지 실제 스크롤한 뒤 김민지를 `처우협의`로 drag | body client·scroll width 390, board client width 366·scroll width 1200·`overflow-x: auto`; 이동 후 김민지가 `처우협의`에 한 번만 표시되고 현재 단계도 일치 |
+| target 테두리 클리핑  | `BoardColumn` 회귀 테스트와 Tailwind class 확인                                                           | 외부 `ring-offset-2`를 제거하고 `ring-inset`을 적용해 강조 테두리가 컬럼 내부에 표시됨                                                                     |
+| focused 테스트        | `npm test -- src/services/applicantApi.test.ts src/components/ContentComponent.test.tsx src/App.test.tsx` | 3개 파일, 24개 테스트 통과                                                                                                                                 |
+| 전체 테스트           | `npm test -- --run`                                                                                       | 15개 파일, 89개 테스트 통과                                                                                                                                |
+| 정적·production 검증  | `npm run lint`, `npm run build`, `git diff --check`                                                       | 모두 종료 코드 0                                                                                                                                           |
+
+#### AI 제안에서 발견한 문제
+
+- mock API의 지연은 10% 확률이고 대부분 응답이 즉시 끝나, 브라우저에서 저장 응답 전 원본 컬럼 유지 순간을 안정적으로 캡처하지 못했다. 실제 pointer drag에서 hover·성공·reload 영속성은 확인했고, pending 중 원본 위치 유지와 중복 요청 차단은 결정론적 App 통합 테스트로 별도 확인했다.
+- 브라우저 QA 중 한 번의 drag 뒤 카드가 기존 단계에 유지됐고, reload 조회 오류도 한 번 발생했다. 기존 상태가 보존된 것을 확인하고 안전하게 재시도했으며, 성공 상태를 확인한 뒤에만 결과를 기록했다.
+- 최초 target 강조의 `ring-offset-2`가 보드 가로 스크롤 컨테이너 밖으로 그려져 위·아래가 잘리는 문제가 사용자 확인에서 발견됐다. 원인을 overflow 경계와 외부 ring의 조합으로 좁힌 뒤 내부 ring으로 수정하고 회귀 테스트를 추가했다.
+
+#### 최종 결정
+
+- 결정: 수정 후 채택
+- 반영 내용: `@dnd-kit/react` 기반 단계 간 포인터 drag adapter, 순수 drop 검증, API-backed mutation과 성공 후 query 재조회, 저장 중 동일 카드 차단, 내부 ring 방식의 target 강조, localStorage 영속성 검증을 구현했다. 단계 단위 키보드 이동과 `REQUIREMENTS.md` 2.4의 낙관적 업데이트·실패 복구는 구현하지 않았다.
+- 결정 근거: 사용자가 단계 간 이동만 먼저 구현하고 제안된 1번 계획으로 진행하도록 요청했다. 자동 테스트와 실제 포인터·새로고침·390×844 검증에서 단계 저장, 단일 표시, 다른 지원자 불변성, 보드 전용 가로 스크롤을 확인했다.
+
+---
+
 ## 새 기록 템플릿
 
 ### <!-- 기능명 -->
