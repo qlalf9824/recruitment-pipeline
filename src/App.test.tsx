@@ -65,11 +65,12 @@ describe('App applicant query states', () => {
   it('shows loading while the initial request is unresolved', () => {
     renderApp(vi.fn(() => new Promise<Applicant[]>(() => undefined)))
 
-    expect(
-      screen.getByRole('status', {
-        name: '지원자 정보를 불러오는 중입니다.',
-      }),
-    ).toBeTruthy()
+    const loadingStatus = screen.getByRole('status', {
+      name: '지원자 정보를 불러오는 중입니다.',
+    })
+
+    expect(loadingStatus).toBeTruthy()
+    expect(loadingStatus.getAttribute('aria-busy')).toBe('true')
   })
 
   it('shows the applicant board after a successful request', async () => {
@@ -99,6 +100,12 @@ describe('App applicant query states', () => {
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('지원자 정보를 불러오지 못했습니다.')
     expect(alert.textContent).not.toContain('internal detail')
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: '지원자 정보를 불러오지 못했습니다.',
+      }),
+    ).toBeTruthy()
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeTruthy()
   })
 
