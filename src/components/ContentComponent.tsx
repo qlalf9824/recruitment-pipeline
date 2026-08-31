@@ -1,14 +1,22 @@
+import { useMemo, useState } from "react";
 import type { Applicant } from "../models/applicant";
 import type { ApplicantStage } from "../models/applicant";
 import { useUpdateApplicantStageMutation } from "../hooks/useUpdateApplicantStageMutation";
 import { ApplicantBoard } from "./ApplicantBoard";
+import { ApplicantFilter } from "./ApplicantFilter";
 
 interface ContentComponentProps {
   applicants: Applicant[];
 }
 
 export function ContentComponent({ applicants }: ContentComponentProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const updateStageMutation = useUpdateApplicantStageMutation();
+  const jobs = useMemo(
+    () => [...new Set(applicants.map((applicant) => applicant.position))],
+    [applicants],
+  );
 
   const handleMoveApplicant = (applicantId: string, stage: ApplicantStage) => {
     if (updateStageMutation.isPending) return;
@@ -25,6 +33,13 @@ export function ContentComponent({ applicants }: ContentComponentProps) {
       <h1 className="mb-[18px] text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-zinc-800 max-sm:mb-3.5">
         지원자 관리
       </h1>
+      <ApplicantFilter
+        jobs={jobs}
+        onSearchTermChange={setSearchTerm}
+        onSelectedJobsChange={setSelectedJobs}
+        searchTerm={searchTerm}
+        selectedJobs={selectedJobs}
+      />
       <div
         aria-label="채용 단계 보드"
         className="overflow-x-auto rounded-[14px] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-blue-600"
