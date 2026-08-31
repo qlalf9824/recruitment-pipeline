@@ -30,12 +30,14 @@ Document only paths that currently exist.
 | `PROMPTS.md` | Records significant AI requests, proposals, user reviews and validation, and final outcomes. |
 | `DECISIONS.md` | Records significant project decisions, considered options, rationale, and trade-offs. |
 | `README.md` | Contains the current React, TypeScript, and Vite starter-template guidance. |
-| `src/main.tsx` | Creates the default applicant service graph once, installs its provider, and renders the root component. |
-| `src/App.tsx` | Contains the currently empty root UI component. |
+| `src/main.tsx` | Creates the application-lifetime QueryClient and default applicant service graph, installs both providers, and renders the root component. |
+| `src/App.tsx` | Selects loading, error, or content UI from the applicant query state. |
 | `src/models/` | Contains domain data models, compile-time contracts, and shared runtime guards. |
 | `src/mocks/` | Contains immutable mock seed data factories. |
 | `src/services/` | Contains injected applicant persistence, API behavior, error, and orchestration services. |
 | `src/contexts/` | Contains the applicant API Context, Provider, consumer hook, and their tests. |
+| `src/hooks/` | Contains query hooks that adapt injected services for UI consumers. |
+| `src/components/` | Contains presentation components for applicant loading, error, and content states. |
 | `docs/superpowers/specs/` | Contains reviewed technical design specifications. |
 | `docs/superpowers/plans/` | Contains executable implementation plans. |
 | `public/` | Contains the `favicon.svg` and `icons.svg` static files. |

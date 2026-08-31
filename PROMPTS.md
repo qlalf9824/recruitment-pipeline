@@ -195,6 +195,52 @@
 - 반영 내용: 내부 TypeScript mock API, 변경 시점 localStorage 저장, const 기반 공개 union, storage·behavior 주입형 Applicant API, 앱 시작 지점의 단일 조립, Context 소비 구조를 구현했다. 주입을 통해 API는 구체 browser storage·난수·타이머가 아니라 조회·변경 호출 계약에 의존하고, `main.tsx`만 production 구현을 조립하도록 했다. `Applicant`의 상세 필드는 제거하고 상세 모델은 이후 작업으로 미뤘다. 로딩·빈 상태·오류·재시도와 보드 이동 같은 UI Acceptance Criteria는 후속 UI 작업 범위로 남아 있다.
 - 결정 근거: 사용자가 구체 구현과 API orchestration을 분리해 호출 타입에 의존하도록 요청했다. 실제 검증에서 in-memory storage, 고정 behavior, 주입 난수, jsdom storage를 같은 계약으로 교체해 오류 우선순위와 persistence를 확인했으며, 자동 테스트와 lint·build·공백 검사를 통과했다.
 
+### 지원자 조회 상태와 재시도 UI 구현
+
+- 관련 요구사항: `2.1 지원자 데이터 조회와 초기 상태 처리`
+- 작업 상태: 완료
+- 관련 커밋: 미커밋
+
+#### 주요 프롬프트
+
+> react-query 를 통해 api 호출해서 로딩, 에러 상태 관리하면 좋을 거 같아
+
+주요 후속 프롬프트:
+
+- “`useApplicantQuery` 를 생성하는거로 하되 `hooks/` 폴더에 생성해줘.”
+- “`ErrorComponent`, `NotFoundComponent`, `ContentComponent` 각각 따로 만들어서 api 상태에 따로 보여주도록 하자.”
+- “응 로딩 컴포넌트도 추가해줘.”
+- “not found 컴포넌트는 제거하자 보드 내에서 처리하는게 더 나을 거 같아.”
+
+#### AI가 제안한 핵심 내용
+
+- 앱 시작 시 하나의 `QueryClient`를 생성해 기존 Applicant API Provider 바깥에 제공한다.
+- `useApplicantQuery`만 Context의 Applicant API와 React Query를 연결한다.
+- 자동 retry와 focus·reconnect refetch를 끄고 오류 화면의 버튼으로만 다시 조회한다.
+- 현재 `2.1` 범위의 성공 화면은 지원자 수만 표시하고 보드 컬럼과 카드는 후속 범위로 남긴다.
+
+#### 직접 리뷰·검증한 내용
+
+| 검토·검증 대상        | 확인 방법 또는 근거                                        | 결과                                                                   |
+| --------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 초기 상태 분기        | 미완료 promise, 1건, 0건, reject 응답으로 UI 테스트        | 로딩, 1건·0건 콘텐츠, 안전한 오류 안내 표시                            |
+| 재시도                | 순차 응답과 deferred promise로 호출 수·상태 전환 검증      | 클릭 한 번당 한 번 호출, 성공 전환, 재실패 유지, 진행 중 버튼 비활성화 |
+| 자동 조회 방지        | focus와 online 이벤트 발생 후 호출 수 확인                 | 추가 호출 없음                                                         |
+| Context 경계          | 실제 QueryClientProvider와 ApplicantApiProvider로 App 렌더 | 주입된 Applicant API 결과 사용                                         |
+| 전체 테스트           | `npm test`                                                 | 8개 파일, 67개 테스트 통과                                             |
+| 정적 검사             | `npm run lint`                                             | 오류 없이 통과                                                         |
+| 타입·production build | `npm run build`                                            | TypeScript와 Vite build 통과                                           |
+
+#### AI 제안에서 발견한 문제
+
+- React Query v5는 오류 후 `refetch()`가 진행되는 동안 query를 다시 pending 상태로 전환했다. 단순히 pending을 모두 초기 로딩으로 표시하면 재시도 중 오류 화면과 비활성 버튼이 사라지므로, `isFetchedAfterMount`로 최초 요청과 재시도를 구분했다.
+
+#### 최종 결정
+
+- 결정: 수정 후 채택
+- 반영 내용: React Query 조회 hook, 앱 생명주기의 QueryClient, 로딩·오류·콘텐츠 컴포넌트, 명시적 재시도와 자동 refetch 방지 정책을 구현했다. 후속 요청에 따라 `NotFoundComponent`를 제거하고 빈 배열도 콘텐츠에 전달해 보드가 전체·컬럼 빈 상태를 처리하도록 책임을 옮겼다.
+- 결정 근거: 요구사항 2.1의 조회·로딩·오류·재시도 흐름과 성공 데이터 전달을 사용자 관점 테스트로 확인했고 기존 mock API 테스트를 포함한 전체 검증을 통과했다. 전체 데이터 0건의 최종 빈 상태 표시는 후속 보드 구현에서 검증해야 한다.
+
 ---
 
 ## 새 기록 템플릿
