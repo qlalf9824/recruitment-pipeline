@@ -31,13 +31,13 @@ Document only paths that currently exist.
 | `DECISIONS.md` | Records significant project decisions, considered options, rationale, and trade-offs. |
 | `README.md` | Contains the current React, TypeScript, and Vite starter-template guidance. |
 | `src/main.tsx` | Creates the application-lifetime QueryClient and default applicant service graph, installs both providers, and renders the root component. |
-| `src/App.tsx` | Mounts the application snackbar once and selects loading, error, or content UI from the applicant query state. |
+| `src/App.tsx` | Mounts the application snackbar once and renders the content entry point. |
 | `src/models/` | Contains domain data models, compile-time contracts, and shared runtime guards. |
 | `src/mocks/` | Contains immutable mock seed data factories. |
-| `src/services/` | Contains injected applicant persistence, API behavior, error, and orchestration services. |
+| `src/services/` | Contains injected applicant persistence, read-only API filtering, API behavior, error, and orchestration services. |
 | `src/contexts/` | Contains the applicant API Context, Provider, consumer hook, and their tests. |
-| `src/hooks/` | Contains applicant query and stage-mutation hooks, including optimistic cache updates and rollback, that adapt injected services for UI consumers. |
-| `src/components/` | Contains Tailwind-based presentation components for applicant loading, error, content, search and job-filter controls, the recruitment-stage board, its columns and cards, plus drag-and-drop adapters and drop validation. |
+| `src/hooks/` | Contains search-keyed applicant queries, static job-option queries, and stage-mutation hooks with cross-query optimistic cache updates and rollback. |
+| `src/components/` | Contains Tailwind-based content and filter UI, plus the recruitment-stage board that owns applicant query states, columns, cards, drag-and-drop adapters, and drop validation. |
 | `src/styles.css` | Imports Tailwind CSS and defines the minimal application-wide base styles. |
 | `src/testSetup.ts` | Provides browser API test doubles required by jsdom component tests. |
 | `docs/superpowers/specs/` | Contains reviewed technical design specifications. |
