@@ -5,20 +5,16 @@ import {
   fireEvent,
   render,
   screen,
-  waitFor,
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApplicantApiProvider } from '../contexts/ApplicantApiProvider'
-import { useApplicantQuery } from '../hooks/useApplicantQuery'
 import { APPLICANT_STAGE } from '../models/applicant'
-import type { Applicant, ApplicantStage } from '../models/applicant'
+import type { Applicant } from '../models/applicant'
 import type { ApplicantApi } from '../services/applicantApi'
 import { ContentComponent } from './ContentComponent'
 
 interface ApplicantBoardProps {
-  applicants: Applicant[]
-  movingApplicantId?: string
-  onMoveApplicant(applicantId: string, stage: ApplicantStage): void
+  searchTerm: string
 }
 
 const applicantBoard = vi.hoisted(() => ({
@@ -47,20 +43,17 @@ const designerApplicant: Applicant = {
   position: 'Product Designer',
 }
 
-function ActiveApplicantQuery() {
-  useApplicantQuery()
-  return null
-}
-
 afterEach(() => {
+  vi.useRealTimers()
   cleanup()
   applicantBoard.latestProps = undefined
 })
 
 describe('ContentComponent', () => {
-  it('renders name search and job filter controls below the title in order', () => {
+  it('shows job options returned by the job-options API', async () => {
     const api: ApplicantApi = {
-      getApplicants: vi.fn(async () => [applicant, designerApplicant]),
+      getApplicants: vi.fn(async () => [applicant]),
+      getJobOptions: vi.fn(async () => ['QA Engineer']),
       updateApplicantStage: vi.fn(),
     }
     const queryClient = new QueryClient()
@@ -68,7 +61,36 @@ describe('ContentComponent', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ApplicantApiProvider api={api}>
-          <ContentComponent applicants={[applicant, designerApplicant]} />
+          <ContentComponent />
+        </ApplicantApiProvider>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '직무 전체' }))
+
+    expect(
+      await screen.findByRole('checkbox', { name: 'QA Engineer' }),
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('checkbox', { name: 'Frontend Engineer' }),
+    ).toBeNull()
+  })
+
+  it('renders name search and job filter controls below the title in order', () => {
+    const api: ApplicantApi = {
+      getApplicants: vi.fn(async () => [applicant, designerApplicant]),
+      getJobOptions: vi.fn(async () => [
+        'Frontend Engineer',
+        'Product Designer',
+      ]),
+      updateApplicantStage: vi.fn(),
+    }
+    const queryClient = new QueryClient()
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ApplicantApiProvider api={api}>
+          <ContentComponent />
         </ApplicantApiProvider>
       </QueryClientProvider>,
     )
@@ -88,12 +110,15 @@ describe('ContentComponent', () => {
     expect(filter.classList.contains('flex')).toBe(true)
 
     fireEvent.change(search, { target: { value: 'Kim' } })
-    expect((search as HTMLInputElement).value).toBe('Kim')
   })
 
-  it('opens a multi-select job dropdown, reports its count, and supports dismissal', () => {
+  it('opens a multi-select job dropdown, reports its count, and supports dismissal', async () => {
     const api: ApplicantApi = {
       getApplicants: vi.fn(async () => [applicant, designerApplicant]),
+      getJobOptions: vi.fn(async () => [
+        'Frontend Engineer',
+        'Product Designer',
+      ]),
       updateApplicantStage: vi.fn(),
     }
     const queryClient = new QueryClient()
@@ -101,14 +126,14 @@ describe('ContentComponent', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ApplicantApiProvider api={api}>
-          <ContentComponent applicants={[applicant, designerApplicant]} />
+          <ContentComponent />
         </ApplicantApiProvider>
       </QueryClientProvider>,
     )
 
     fireEvent.click(screen.getByRole('button', { name: '직무 전체' }))
     fireEvent.click(
-      screen.getByRole('checkbox', { name: 'Frontend Engineer' }),
+      await screen.findByRole('checkbox', { name: 'Frontend Engineer' }),
     )
     fireEvent.click(
       screen.getByRole('checkbox', { name: 'Product Designer' }),
@@ -132,44 +157,39 @@ describe('ContentComponent', () => {
     ).toBeNull()
   })
 
-  it('saves a delivered move and refreshes the active applicant query', async () => {
-    const getApplicants = vi.fn(async () => [applicant])
-    const updateApplicantStage = vi.fn(async () => ({
-      ...applicant,
-      stage: APPLICANT_STAGE.INTERVIEW,
-    }))
-    const api: ApplicantApi = { getApplicants, updateApplicantStage }
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    })
+  it('shows the entered value immediately and passes it to the board after 150ms', () => {
+    vi.useFakeTimers()
+    const api: ApplicantApi = {
+      getApplicants: vi.fn(),
+      getJobOptions: vi.fn(async () => []),
+      updateApplicantStage: vi.fn(),
+    }
+    const queryClient = new QueryClient()
 
     render(
       <QueryClientProvider client={queryClient}>
         <ApplicantApiProvider api={api}>
-          <ActiveApplicantQuery />
-          <ContentComponent applicants={[applicant]} />
+          <ContentComponent />
         </ApplicantApiProvider>
       </QueryClientProvider>,
     )
 
-    await waitFor(() => {
-      expect(getApplicants).toHaveBeenCalledTimes(1)
+    const search = screen.getByRole<HTMLInputElement>('searchbox', {
+      name: '지원자 이름 검색',
     })
+    fireEvent.change(search, { target: { value: 'Kim' } })
 
-    await act(async () => {
-      applicantBoard.latestProps?.onMoveApplicant(
-        'applicant-1',
-        APPLICANT_STAGE.INTERVIEW,
-      )
-    })
+    expect(search.value).toBe('Kim')
+    expect(applicantBoard.latestProps?.searchTerm).toBe('')
 
-    expect(updateApplicantStage).toHaveBeenCalledTimes(1)
-    expect(updateApplicantStage).toHaveBeenCalledWith(
-      'applicant-1',
-      APPLICANT_STAGE.INTERVIEW,
-    )
-    await waitFor(() => {
-      expect(getApplicants).toHaveBeenCalledTimes(2)
+    act(() => {
+      vi.advanceTimersByTime(149)
     })
+    expect(applicantBoard.latestProps?.searchTerm).toBe('')
+
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(applicantBoard.latestProps?.searchTerm).toBe('Kim')
   })
 })

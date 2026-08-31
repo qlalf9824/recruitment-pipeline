@@ -2,7 +2,6 @@ import { ApplicantSearch } from './ApplicantSearch'
 import { JobFilter } from './JobFilter'
 
 interface ApplicantFilterProps {
-  jobs: string[]
   onSearchTermChange(value: string): void
   onSelectedJobsChange(jobs: string[]): void
   searchTerm: string
@@ -10,7 +9,6 @@ interface ApplicantFilterProps {
 }
 
 export function ApplicantFilter({
-  jobs,
   onSearchTermChange,
   onSelectedJobsChange,
   searchTerm,
@@ -23,7 +21,6 @@ export function ApplicantFilter({
     >
       <ApplicantSearch onChange={onSearchTermChange} value={searchTerm} />
       <JobFilter
-        jobs={jobs}
         onChange={onSelectedJobsChange}
         selectedJobs={selectedJobs}
       />

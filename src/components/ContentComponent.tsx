@@ -1,32 +1,29 @@
-import { useMemo, useState } from "react";
-import type { Applicant } from "../models/applicant";
-import type { ApplicantStage } from "../models/applicant";
-import { useUpdateApplicantStageMutation } from "../hooks/useUpdateApplicantStageMutation";
+import debounce from "lodash/debounce";
+import { useEffect, useMemo, useState } from "react";
 import { ApplicantBoard } from "./ApplicantBoard";
 import { ApplicantFilter } from "./ApplicantFilter";
 
-interface ContentComponentProps {
-  applicants: Applicant[];
-}
-
-export function ContentComponent({ applicants }: ContentComponentProps) {
+export function ContentComponent() {
+  const [inputSearchTerm, setInputSearchTerm] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
-  const updateStageMutation = useUpdateApplicantStageMutation();
-  const jobs = useMemo(
-    () => [...new Set(applicants.map((applicant) => applicant.position))],
-    [applicants],
+
+  const debouncedSetSearchTerm = useMemo(
+    () => debounce(setSearchTerm, 150),
+    [],
   );
 
-  const handleMoveApplicant = (applicantId: string, stage: ApplicantStage) => {
-    if (updateStageMutation.isPending) return;
+  useEffect(
+    () => () => {
+      debouncedSetSearchTerm.cancel();
+    },
+    [debouncedSetSearchTerm],
+  );
 
-    updateStageMutation.mutate({ applicantId, stage });
+  const handleSearchTermChange = (value: string) => {
+    setInputSearchTerm(value);
+    debouncedSetSearchTerm(value);
   };
-
-  const movingApplicantId = updateStageMutation.isPending
-    ? updateStageMutation.variables?.applicantId
-    : undefined;
 
   return (
     <main className="mx-auto w-[min(calc(100%-2rem),90rem)] py-8 max-sm:w-[min(calc(100%-1.5rem),90rem)] max-sm:py-6">
@@ -34,24 +31,12 @@ export function ContentComponent({ applicants }: ContentComponentProps) {
         지원자 관리
       </h1>
       <ApplicantFilter
-        jobs={jobs}
-        onSearchTermChange={setSearchTerm}
+        onSearchTermChange={handleSearchTermChange}
         onSelectedJobsChange={setSelectedJobs}
-        searchTerm={searchTerm}
+        searchTerm={inputSearchTerm}
         selectedJobs={selectedJobs}
       />
-      <div
-        aria-label="채용 단계 보드"
-        className="overflow-x-auto rounded-[14px] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-blue-600"
-        role="region"
-        tabIndex={0}
-      >
-        <ApplicantBoard
-          applicants={applicants}
-          movingApplicantId={movingApplicantId}
-          onMoveApplicant={handleMoveApplicant}
-        />
-      </div>
+      <ApplicantBoard searchTerm={searchTerm} />
     </main>
   );
 }

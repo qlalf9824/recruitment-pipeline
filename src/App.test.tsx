@@ -83,6 +83,10 @@ function renderApp(
   })
   const api: ApplicantApi = {
     getApplicants,
+    getJobOptions: vi.fn(async () => [
+      'Frontend Engineer',
+      'Backend Engineer',
+    ]),
     updateApplicantStage,
   }
 
@@ -116,6 +120,31 @@ async function deliverApplicantMove(
 }
 
 describe('App applicant query states', () => {
+  it('keeps the same focused search input while a searched request is pending', async () => {
+    const searchedRequest = createDeferred<Applicant[]>()
+    const getApplicants = vi
+      .fn<ApplicantApi['getApplicants']>()
+      .mockResolvedValueOnce([applicant, otherApplicant])
+      .mockReturnValueOnce(searchedRequest.promise)
+    renderApp(getApplicants)
+
+    const search = await screen.findByRole('searchbox', {
+      name: '지원자 이름 검색',
+    })
+    search.focus()
+    fireEvent.change(search, { target: { value: 'Kim' } })
+
+    await waitFor(() => {
+      expect(getApplicants).toHaveBeenLastCalledWith({ searchTerm: 'Kim' })
+    })
+    expect(
+      screen.getByRole('searchbox', { name: '지원자 이름 검색' }),
+    ).toBe(search)
+    expect(document.activeElement).toBe(search)
+
+    searchedRequest.resolve([applicant])
+  })
+
   it('shows loading while the initial request is unresolved', () => {
     renderApp(vi.fn(() => new Promise<Applicant[]>(() => undefined)))
 
@@ -124,7 +153,11 @@ describe('App applicant query states', () => {
     })
 
     expect(loadingStatus).toBeTruthy()
-    expect(loadingStatus.getAttribute('aria-busy')).toBe('true')
+    expect(
+      screen
+        .getByRole('region', { name: '채용 단계 보드' })
+        .getAttribute('aria-busy'),
+    ).toBe('true')
   })
 
   it('shows the applicant board after a successful request', async () => {
@@ -136,16 +169,58 @@ describe('App applicant query states', () => {
     ).toBeTruthy()
     expect(screen.getByRole('region', { name: '채용 단계 보드' })).toBeTruthy()
     expect(
-      screen.getByRole('article', { name: 'Kim Codex 지원자' }),
+      await screen.findByRole('article', { name: 'Kim Codex 지원자' }),
     ).toBeTruthy()
     expect(getApplicants).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests and shows applicants filtered by the entered name', async () => {
+    const getApplicants = vi
+      .fn<ApplicantApi['getApplicants']>()
+      .mockResolvedValueOnce([applicant, otherApplicant])
+      .mockResolvedValueOnce([applicant])
+    renderApp(getApplicants)
+
+    const search = await screen.findByRole('searchbox', {
+      name: '지원자 이름 검색',
+    })
+    fireEvent.change(search, { target: { value: 'Kim' } })
+
+    await waitFor(() => {
+      expect(getApplicants).toHaveBeenLastCalledWith({ searchTerm: 'Kim' })
+    })
+    expect(
+      await screen.findByRole('article', { name: 'Kim Codex 지원자' }),
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('article', { name: 'Lee Query 지원자' }),
+    ).toBeNull()
+  })
+
+  it('distinguishes an empty search result from an empty applicant collection', async () => {
+    const getApplicants = vi
+      .fn<ApplicantApi['getApplicants']>()
+      .mockResolvedValueOnce([applicant, otherApplicant])
+      .mockResolvedValueOnce([])
+    renderApp(getApplicants)
+
+    fireEvent.change(
+      await screen.findByRole('searchbox', { name: '지원자 이름 검색' }),
+      { target: { value: 'Nobody' } },
+    )
+
+    expect(
+      await screen.findByText('검색 조건에 맞는 지원자가 없습니다.'),
+    ).toBeTruthy()
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(5)
+    expect(screen.queryByText('지원자가 없습니다')).toBeNull()
   })
 
   it('passes an empty applicant result to the content state', async () => {
     renderApp(vi.fn(async () => []))
 
     expect(await screen.findAllByRole('heading', { level: 2 })).toHaveLength(5)
-    expect(screen.getAllByText('지원자가 없습니다')).toHaveLength(1)
+    expect(await screen.findAllByText('지원자가 없습니다')).toHaveLength(1)
   })
 
   it('shows a safe error state and retry action when the request fails', async () => {
@@ -154,12 +229,7 @@ describe('App applicant query states', () => {
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('지원자 정보를 불러오지 못했습니다.')
     expect(alert.textContent).not.toContain('internal detail')
-    expect(
-      screen.getByRole('heading', {
-        level: 2,
-        name: '지원자 정보를 불러오지 못했습니다.',
-      }),
-    ).toBeTruthy()
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(5)
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeTruthy()
   })
 
@@ -287,16 +357,17 @@ describe('App applicant stage movement', () => {
     const updateApplicantStage = vi.fn(() => updateRequest.promise)
     renderApp(getApplicants, updateApplicantStage)
 
-    const sourceArticle = await screen.findByRole('article', {
+    await screen.findByRole('article', {
       name: 'Kim Codex 지원자',
     })
     const initialDragEnd = dragDropProvider.onDragEnd
     await deliverApplicantMove('applicant-1', APPLICANT_STAGE.INTERVIEW)
 
     await waitFor(() => {
-      expect(
-        sourceArticle.closest('li')?.querySelector('[aria-disabled="true"]'),
-      ).not.toBeNull()
+      const movedArticle = within(
+        screen.getByRole('region', { name: '면접 단계' }),
+      ).getByRole('article', { name: 'Kim Codex 지원자' })
+      expect(movedArticle.closest('li')?.querySelector('[aria-disabled="true"]')).not.toBeNull()
     })
     expect(dragDropProvider.onDragEnd).not.toBe(initialDragEnd)
     await deliverApplicantMove('applicant-1', APPLICANT_STAGE.INTERVIEW)
@@ -328,14 +399,15 @@ describe('App applicant stage movement', () => {
     const updateApplicantStage = vi.fn(() => updateRequest.promise)
     renderApp(getApplicants, updateApplicantStage)
 
-    const sourceArticle = await screen.findByRole('article', {
+    await screen.findByRole('article', {
       name: 'Kim Codex 지원자',
     })
     await deliverApplicantMove('applicant-1', APPLICANT_STAGE.INTERVIEW)
     await waitFor(() => {
-      expect(
-        sourceArticle.closest('li')?.querySelector('[aria-disabled="true"]'),
-      ).not.toBeNull()
+      const movedArticle = within(
+        screen.getByRole('region', { name: '면접 단계' }),
+      ).getByRole('article', { name: 'Kim Codex 지원자' })
+      expect(movedArticle.closest('li')?.querySelector('[aria-disabled="true"]')).not.toBeNull()
     })
 
     await act(async () => {

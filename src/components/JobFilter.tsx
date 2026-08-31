@@ -1,13 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { useJobOptionsQuery } from '../hooks/useJobOptionsQuery'
 
 interface JobFilterProps {
-  jobs: string[]
   onChange(jobs: string[]): void
   selectedJobs: string[]
 }
 
-export function JobFilter({ jobs, onChange, selectedJobs }: JobFilterProps) {
+export function JobFilter({ onChange, selectedJobs }: JobFilterProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const { data: jobs = [] } = useJobOptionsQuery()
   const containerRef = useRef<HTMLDivElement>(null)
   const listId = useId()
   const buttonLabel =

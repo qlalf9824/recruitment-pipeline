@@ -1,8 +1,11 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Feedback } from '@dnd-kit/dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ApplicantApiProvider } from '../contexts/ApplicantApiProvider'
 import { APPLICANT_STAGE } from '../models/applicant'
 import type { Applicant } from '../models/applicant'
+import type { ApplicantApi } from '../services/applicantApi'
 import { ApplicantBoard } from './ApplicantBoard'
 
 const dragDropProvider = vi.hoisted(() => ({
@@ -59,17 +62,61 @@ afterEach(() => {
 
 function renderApplicantBoard(
   applicants: Applicant[],
-  onMoveApplicant = vi.fn(),
 ) {
+  const updateApplicantStage = vi.fn(async (id: string, stage: Applicant['stage']) => ({
+    ...applicants.find((applicant) => applicant.id === id)!,
+    stage,
+  }))
+  const api: ApplicantApi = {
+    getApplicants: vi.fn(async () => applicants),
+    getJobOptions: vi.fn(async () => []),
+    updateApplicantStage,
+  }
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  queryClient.setQueryData(['applicants', ''], applicants)
+
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      <ApplicantApiProvider api={api}>
+        <ApplicantBoard searchTerm="" />
+      </ApplicantApiProvider>
+    </QueryClientProvider>,
+  )
+
+  return { ...result, updateApplicantStage }
+}
+
+function renderQueryOwnedBoard(getApplicants: ApplicantApi['getApplicants']) {
+  const api: ApplicantApi = {
+    getApplicants,
+    getJobOptions: vi.fn(async () => []),
+    updateApplicantStage: vi.fn(),
+  }
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
   return render(
-    <ApplicantBoard
-      applicants={applicants}
-      onMoveApplicant={onMoveApplicant}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <ApplicantApiProvider api={api}>
+        <ApplicantBoard searchTerm="" />
+      </ApplicantApiProvider>
+    </QueryClientProvider>,
   )
 }
 
 describe('ApplicantBoard', () => {
+  it('keeps five headers and shows one loading message during the initial request', () => {
+    renderQueryOwnedBoard(() => new Promise<Applicant[]>(() => undefined))
+
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(5)
+    expect(screen.getByRole('status').textContent).toBe(
+      '지원자 정보를 불러오는 중입니다.',
+    )
+  })
+
   it('groups each applicant in its matching fixed-stage column', () => {
     renderApplicantBoard([interviewApplicant, rejectedApplicant])
 
@@ -128,25 +175,25 @@ describe('ApplicantBoard', () => {
     expect(screen.getAllByText('지원자가 없습니다')).toHaveLength(1)
   })
 
-  it('delegates a valid provider drag-end move to the move callback once', () => {
-    const onMoveApplicant = vi.fn()
-    renderApplicantBoard([interviewApplicant], onMoveApplicant)
+  it('delegates a valid provider drag-end move to the update mutation once', async () => {
+    const { updateApplicantStage } = renderApplicantBoard([interviewApplicant])
 
     expect(dragDropProvider.onDragEnd).toBeTruthy()
 
-    dragDropProvider.onDragEnd?.({
-      canceled: false,
-      operation: {
-        source: { id: interviewApplicant.id },
-        target: { id: APPLICANT_STAGE.OFFER },
-      },
+    await act(async () => {
+      dragDropProvider.onDragEnd?.({
+        canceled: false,
+        operation: {
+          source: { id: interviewApplicant.id },
+          target: { id: APPLICANT_STAGE.OFFER },
+        },
+      })
     })
 
-    expect(onMoveApplicant).toHaveBeenCalledTimes(1)
-    expect(onMoveApplicant).toHaveBeenCalledWith(
-      interviewApplicant.id,
-      APPLICANT_STAGE.OFFER,
-    )
+    await waitFor(() => {
+      expect(updateApplicantStage).toHaveBeenCalledTimes(1)
+    })
+    expect(updateApplicantStage).toHaveBeenCalledWith(interviewApplicant.id, APPLICANT_STAGE.OFFER)
   })
 
   it('extends provider defaults with feedback that disables the drop animation', () => {
