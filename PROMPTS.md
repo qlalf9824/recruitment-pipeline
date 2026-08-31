@@ -132,6 +132,71 @@
 
 ---
 
+### 지원자 mock API와 localStorage 계층 구현
+
+- 관련 요구사항: `2.1 지원자 데이터 조회와 초기 상태 처리`, `2.3 지원자 단계 이동과 저장`, `2.4 낙관적 업데이트와 실패 복구`, `3.4 핵심 동작 테스트`
+- 작업 상태: 완료
+- 관련 커밋: 미커밋
+
+#### 주요 프롬프트
+
+> `applicant.ts`를 바탕으로 mock API를 구현하려고 하며, 앱 내부 TypeScript mock API와 MSW를 구현 복잡도, 실제 API 유사성, local persistence, 실패·지연 테스트, 요구사항 대비 적정성으로 비교해줘.
+
+주요 후속 프롬프트:
+
+- “앱 내부 TypeScript mock API + 분리된 localStorage 저장소를 사용하는 방식이 더 적합한 거 같아.”
+- “로컬 스토리지 관리 파일, api 파일 분리해서 생성하고 api 함수가 로컬 스토리지에 접근해서 데이터를 가져오고 업데이트 하는 방식으로 하면 좋겠어. 다른 UI 컴포넌트들은 로컬 스토리지 함수를 사용하지 않으면 좋겠어.”
+- “저장데이터 손상은 500 입력 오류는 400으로 해줘.”
+- “최초 조회에서는 seed 복사본만 반환하고 데이터 변경이 처음 성공할 때 localStorage에 전체 배열을 저장”하는 방식 승인
+- 실패와 지연을 독립적으로 조합하고 각각 10%, 무작위 지연은 300~2,000ms로 지정
+- “`Applicant`에서 상세는 따로 정의하게 `resume`, `memo`는 제거해주면 좋겠어.”
+- “외부에서 상수를 사용하는 타입들은 union type으로 상수 객체로 만들어주면 좋겠어.”
+- behavior 함수를 별도 파일로 분리하고 storage와 behavior를 Applicant API에 주입하도록 지정
+- 웹 사이트 시작 시 Applicant API를 한 번 생성하고 Context API로 사용하도록 지정
+- “분리가 정확히 되고 Applicant API는 호출 타입에 의존적으로 되도록 만들 수 있어서 좋을 것 같다”는 이유로 구체 구현 대신 계약에 의존하는 구조를 요청
+- Vitest, jsdom, React Testing Library 도입 승인
+
+#### AI가 제안한 핵심 내용
+
+- 현재 규모에서는 MSW보다 앱 내부 TypeScript API와 분리된 localStorage 계층이 적합하다.
+- seed, storage, API 오류, 성공·실패·지연 behavior, Applicant API orchestration, React Context를 각각 명확한 책임으로 분리한다.
+- `ApplicantApi`의 책임을 요청 검증, 데이터 조정, 오류 우선순위 결정으로 제한하고 localStorage, 난수, 타이머 같은 외부 효과는 별도 구현으로 분리한다.
+- `createApplicantApi`가 구체 storage·behavior 모듈을 직접 획득하지 않고 `ApplicantStorage`와 `MockApiBehaviorService` 계약을 주입받도록 한다. production과 test가 서로 다른 구현을 사용해도 API 호출 흐름은 유지된다.
+- 공개 값 타입은 `as const` 객체의 값에서 union을 파생한다.
+- `main.tsx`를 composition root로 사용해 구체 구현 생성과 API 생명주기를 한 곳에 모은다. Context는 서비스를 생성하지 않고 조립된 인스턴스를 전달하며 UI는 `useApplicantApi`로만 API에 접근한다.
+- 테스트에서는 명시 설정, fake storage/behavior, 주입된 난수 함수와 fake timer를 사용해 무작위 실패 여부에 의존하지 않는다.
+
+#### 직접 리뷰·검증한 내용
+
+| 검토·검증 대상        | 확인 방법 또는 근거                                                 | 결과                                                                                                       |
+| --------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 모델 범위             | `Applicant`와 seed 및 저장 검증 필드를 직접 확인                    | `resume`, `memo`를 제거하고 다섯 개 보드 필드만 유지                                                       |
+| seed와 persistence    | seed 복사 격리, 초기 미저장, 최초 변경 전체 저장 테스트             | 요구한 저장 시점과 복사 경계 통과                                                                          |
+| 저장 데이터 검증      | 잘못된 JSON·구조·단계·중복 ID·추가 상세 필드 테스트                 | 손상 데이터 보존 및 storage 전용 오류 확인                                                                 |
+| 오류 우선순위         | 400, 404, storage 500, simulated 500, internal 500 테스트           | 합의한 상태와 저장 실패 시 미변경 확인                                                                     |
+| 실패·지연             | 10% 경계, 300/2,000ms 경계, 독립 조합, 명시 설정 테스트             | 전역 난수에 의존하지 않고 결정론적으로 통과                                                                |
+| 의존성 주입           | in-memory storage와 고정 behavior를 같은 계약으로 주입해 API 테스트 | API가 localStorage, timer, `Math.random`을 직접 사용하지 않고 요청 검증·데이터 변경·오류 우선순위만 조정함 |
+| 구현 교체             | production graph와 jsdom 기반 재생성 graph를 각각 조립해 조회·변경  | 동일한 Applicant API 호출 타입을 유지하면서 browser storage와 test storage를 교체 가능                     |
+| Context 경계          | React Testing Library로 동일 인스턴스와 Provider 누락 검증          | UI 소비 계약 확인                                                                                          |
+| 전체 테스트           | `npm test`                                                          | 7개 파일, 59개 테스트 통과                                                                                 |
+| 정적 검사             | `npm run lint`                                                      | 오류 없이 통과                                                                                             |
+| 타입·production build | `npm run build`                                                     | TypeScript와 Vite build 통과                                                                               |
+| 공백 검사             | `git diff --check`                                                  | 오류 없이 통과                                                                                             |
+
+#### AI 제안에서 발견한 문제
+
+- 최초 계획은 `ApplicantApiContext.tsx`에서 Provider와 hook을 함께 export했으나 ESLint Fast Refresh 규칙에 위배됐다. 규칙을 우회하지 않고 Context, Provider, hook을 각각 파일로 분리했다.
+- Node 26의 실험적 전역 `localStorage`가 값 `undefined`로 이름을 선점해 Vitest가 jsdom storage를 전역에 복사하지 못했다. 저장소가 `Storage`를 주입받도록 설계되어 있었으므로 테스트에서 `jsdom.window.localStorage`를 명시적으로 전달해 실제 jsdom storage 동작을 검증했다.
+- 코드 리뷰에서 `main.tsx`의 `window.localStorage` 즉시 접근이 브라우저 정책에 따라 앱 부팅을 중단할 수 있음을 확인했다. 저장소 factory가 `() => Storage`를 받고 실제 API 연산 시점에만 평가하도록 수정해 해당 오류도 API의 500 경계에서 처리되게 했다.
+
+#### 최종 결정
+
+- 결정: 수정 후 채택
+- 반영 내용: 내부 TypeScript mock API, 변경 시점 localStorage 저장, const 기반 공개 union, storage·behavior 주입형 Applicant API, 앱 시작 지점의 단일 조립, Context 소비 구조를 구현했다. 주입을 통해 API는 구체 browser storage·난수·타이머가 아니라 조회·변경 호출 계약에 의존하고, `main.tsx`만 production 구현을 조립하도록 했다. `Applicant`의 상세 필드는 제거하고 상세 모델은 이후 작업으로 미뤘다. 로딩·빈 상태·오류·재시도와 보드 이동 같은 UI Acceptance Criteria는 후속 UI 작업 범위로 남아 있다.
+- 결정 근거: 사용자가 구체 구현과 API orchestration을 분리해 호출 타입에 의존하도록 요청했다. 실제 검증에서 in-memory storage, 고정 behavior, 주입 난수, jsdom storage를 같은 계약으로 교체해 오류 우선순위와 persistence를 확인했으며, 자동 테스트와 lint·build·공백 검사를 통과했다.
+
+---
+
 ## 새 기록 템플릿
 
 ### <!-- 기능명 -->

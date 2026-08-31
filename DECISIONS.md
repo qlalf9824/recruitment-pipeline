@@ -144,6 +144,67 @@
 | 원문 범위에 따라 상세 정보를 조회 전용으로 정의 | 채택 | 사용자가 조회만 가능하도록 확인함 |
 | 상세 보기의 화면 형태를 제한하지 않음 | 수정 후 채택 | 사용자가 모달 또는 사이드바로 허용 범위를 명시함 |
 
+### DEC-004: 지원자 mock API의 계층과 주입 방식
+
+- 상태: 채택
+- 결정일: 2026-08-31
+- 관련 요구사항: `2.1 지원자 데이터 조회와 초기 상태 처리`, `2.3 지원자 단계 이동과 저장`, `2.4 낙관적 업데이트와 실패 복구`, `3.4 핵심 동작 테스트`
+- 관련 결정: 없음
+
+#### 1. 결정해야 했던 문제
+
+실제 백엔드 없이 지원자 목록 조회와 단계 변경을 제공하면서 새로고침 후 변경을 유지하고, 실패와 지연을 재현 가능하게 만들어야 했다. 동시에 `ApplicantApi`의 책임을 요청 검증, 데이터 조정, 오류 우선순위 결정으로 제한하고, localStorage 접근과 난수·타이머처럼 실행 환경에 따라 달라지는 외부 효과를 API 경계 밖에 둘 방법이 필요했다. 구체 구현을 직접 import하면 UI와 API orchestration이 브라우저 전역 및 무작위 동작에 결합되므로, 어떤 계약에 의존하고 어디에서 구현을 조립할지 결정해야 했다.
+
+#### 2. 고려한 선택지
+
+| 선택지 | 기대 효과 | 제약·위험 |
+| --- | --- | --- |
+| 앱 내부 TypeScript mock API | 요구 규모에 맞는 작은 구현과 직접적인 타입 재사용 | 실제 HTTP 요청·상태 코드 경계를 그대로 검증하지 못함 |
+| MSW 기반 HTTP mock | fetch, URL, 메서드, 상태 코드 등 실제 API와 유사 | localStorage 계층은 별도로 필요하고 현재 범위에 설정 비용이 큼 |
+| API가 storage와 behavior 구현을 직접 import | 파일 수와 조립 코드가 적고 호출 경로가 짧음 | localStorage, 난수, 타이머 획득 방식이 API에 고정되어 실패 재현과 구현 교체가 전역 mocking에 의존함 |
+| storage와 behavior 계약을 API factory에 주입 | API가 호출 계약에만 의존하고 production·test에서 서로 다른 구현을 조립할 수 있음 | interface, factory, 앱 조립 코드와 명시적인 생명주기 관리가 추가됨 |
+| 목록과 상세 필드를 하나의 Applicant에 포함 | 한 객체로 모든 화면 데이터 사용 가능 | 목록 저장소가 아직 구현하지 않는 상세 범위까지 소유함 |
+| 목록 Applicant와 상세 모델을 분리 | 현재 API가 보드 필드에만 집중 | 상세 기능 구현 시 별도 모델과 API 계약이 필요함 |
+
+#### 3. 최종 선택
+
+앱 내부 TypeScript mock API를 사용한다. seed, localStorage 저장소, mock API 오류, 성공·실패·지연 behavior, Applicant API orchestration을 분리한다. `createApplicantApi`는 구체 구현을 import하지 않고 `ApplicantStorage`와 `MockApiBehaviorService` 계약을 주입받는다. 이로써 API는 지원자 조회·변경 호출 타입과 오류 규칙에만 의존한다.
+
+`main.tsx`는 유일한 composition root로서 렌더 전에 localStorage 구현과 behavior 구현을 한 번 생성해 Applicant API에 주입한다. React Context는 서비스를 생성하지 않고 이미 조립된 인스턴스를 UI에 전달하며, UI는 `useApplicantApi`만 사용한다. production에서는 브라우저 storage와 기본 난수를, 테스트에서는 jsdom storage·in-memory storage·고정 behavior·주입 난수를 같은 계약 아래 사용할 수 있다.
+
+`Applicant`에는 목록에 필요한 `id`, `name`, `position`, `appliedAt`, `stage`만 두며 상세 모델은 요구사항 `2.6` 구현 시 결정한다. 외부에서 값으로 사용하는 단계, 상태, 오류 코드, outcome, delay mode는 `as const` 객체에서 union을 파생한다.
+
+저장 키가 없으면 seed 복사본을 반환하고 최초 성공 변경 시 전체 배열을 저장한다. 잘못된 stage는 400, 없는 ID는 404, 손상된 저장 데이터와 시뮬레이션·예상 밖 오류는 500으로 구분한다. 실패와 지연은 각각 독립적인 10% 확률이며 무작위 지연은 300~2,000ms다. 명시 설정과 주입된 난수 함수로 테스트를 결정론적으로 수행한다.
+
+#### 4. 선택 이유
+
+- 실제 백엔드는 요구 범위가 아니며 현재 데이터 동작은 목록 조회와 단계 변경으로 제한된다.
+- localStorage 구현을 MSW 사용 여부와 관계없이 만들어야 하므로 HTTP mocking 추가 비용의 이점이 작다.
+- `ApplicantApi`가 storage 획득과 지연 생성까지 담당하면 데이터 orchestration과 실행 환경 제어라는 서로 다른 책임이 한 모듈에 섞인다. 주입을 사용하면 API는 요청 검증, 데이터 선택·변경, 오류 변환 순서에만 집중한다.
+- `ApplicantStorage` 주입은 정상 localStorage뿐 아니라 데이터 손상, 접근 차단, quota 실패를 같은 호출 계약으로 표현하게 한다. 브라우저 storage getter도 실제 `load`·`save` 시점에 평가하므로 부팅 실패가 아니라 API의 `INTERNAL_ERROR` 경계로 전달된다.
+- `MockApiBehaviorService` 주입은 난수와 타이머를 API에서 제거한다. production의 10% 무작위 동작과 테스트의 고정 성공·실패·지연을 같은 API 흐름에 적용하므로 전역 `Math.random`이나 timer 구현을 교체하지 않고 오류 우선순위를 검증할 수 있다.
+- `main.tsx`에 구체 구현 조립을 모으면 서비스 생성 시점과 생명주기가 한 곳에 드러난다. Context는 전달만 담당하므로 React 재렌더가 API 인스턴스를 다시 만들지 않고 UI도 구현 계층을 import하지 않는다.
+- 목록 모델에서 상세 필드를 제거하면 아직 정하지 않은 상세 API 구조가 현재 저장 계약에 고정되지 않는다.
+- Vitest, jsdom, React Testing Library로 각 계층과 Context 경계를 자동 검증할 수 있다.
+
+#### 5. Trade-off / 포기한 점
+
+- 실제 HTTP 요청, 직렬화, URL, 메서드 계약은 검증하지 않는다.
+- 단순 직접 import 방식보다 interface, factory, Context 파일이 늘어나고 의존성을 전달하는 코드가 필요하다.
+- 구체 구현 생성과 서비스 생명주기를 `main.tsx`에서 명시적으로 관리해야 한다.
+- 작은 애플리케이션에서는 주입 구조가 직접 import보다 장황하지만, 이번 요구사항처럼 storage 실패와 무작위·지연을 독립적으로 제어해야 하는 경우에는 분리 비용을 감수한다.
+- 상세 기능을 구현할 때 별도의 상세 모델과 조회 계약을 추가 설계해야 한다.
+
+#### 6. AI 제안 검토
+
+| AI 제안 내용 | 처리 결과 | 이유 |
+| --- | --- | --- |
+| MSW 대신 앱 내부 TypeScript mock API와 localStorage 계층 사용 | 채택 | 현재 요구 규모에서는 HTTP mock 설정 비용이 더 크다고 사용자가 판단함 |
+| storage와 behavior를 모두 Applicant API에 주입 | 채택 | API를 호출 계약과 오류 orchestration에만 의존시키고 브라우저 storage·난수·타이머를 교체 가능한 외부 효과로 분리하려는 사용자 의도에 부합함 |
+| 상세 필드를 Applicant에 유지 | 기각 | 사용자가 상세 모델을 이후 별도 정의하도록 요청함 |
+| 공개 값 타입을 const 객체에서 파생 | 채택 | 기존 단계 상수 패턴과 같은 재사용·타입 안전성을 원함 |
+| API 인스턴스를 앱 시작 시 조립하고 Context로 제공 | 채택 | 구체 구현과 서비스 생명주기를 composition root 한 곳에서 관리하고 Context는 생성이 아닌 전달만 담당하게 함 |
+
 ---
 
 ## 새 결정 템플릿
