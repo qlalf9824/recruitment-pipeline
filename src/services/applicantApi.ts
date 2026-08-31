@@ -28,6 +28,7 @@ export interface ApplicantApi {
 
 export interface GetApplicantsParams {
   searchTerm?: string
+  selectedJobs?: string[]
 }
 
 export interface ApplicantApiDependencies {
@@ -48,6 +49,18 @@ function filterApplicantsByName(
 
   return applicants.filter((applicant) =>
     applicant.name.toLocaleLowerCase().includes(normalizedSearchTerm),
+  )
+}
+
+function filterApplicantsByJobs(
+  applicants: Applicant[],
+  selectedJobs: string[] = [],
+): Applicant[] {
+  if (selectedJobs.length === 0) return applicants
+
+  const selectedJobSet = new Set(selectedJobs)
+  return applicants.filter((applicant) =>
+    selectedJobSet.has(applicant.position),
   )
 }
 
@@ -95,7 +108,14 @@ export function createApplicantApi({
         await behavior.wait(resolved.delayMs)
         throwIfSimulatedFailure(resolved.shouldFail)
         const applicants = cloneApplicants(storage.load() ?? createApplicantSeed())
-        return filterApplicantsByName(applicants, params?.searchTerm)
+        const applicantsMatchingName = filterApplicantsByName(
+          applicants,
+          params?.searchTerm,
+        )
+        return filterApplicantsByJobs(
+          applicantsMatchingName,
+          params?.selectedJobs,
+        )
       } catch (error) {
         throw normalizeApiError(error)
       }

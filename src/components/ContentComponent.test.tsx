@@ -15,6 +15,7 @@ import { ContentComponent } from './ContentComponent'
 
 interface ApplicantBoardProps {
   searchTerm: string
+  selectedJobs: string[]
 }
 
 const applicantBoard = vi.hoisted(() => ({
@@ -142,6 +143,10 @@ describe('ContentComponent', () => {
     expect(
       screen.getByRole('button', { name: '직무 2개 선택' }),
     ).toBeTruthy()
+    expect(applicantBoard.latestProps?.selectedJobs).toEqual([
+      'Frontend Engineer',
+      'Product Designer',
+    ])
 
     fireEvent.keyDown(document, { key: 'Escape' })
 

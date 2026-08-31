@@ -36,7 +36,7 @@ export function ContentComponent() {
         searchTerm={inputSearchTerm}
         selectedJobs={selectedJobs}
       />
-      <ApplicantBoard searchTerm={searchTerm} />
+      <ApplicantBoard searchTerm={searchTerm} selectedJobs={selectedJobs} />
     </main>
   );
 }

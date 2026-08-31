@@ -3,12 +3,12 @@ import { useApplicantApi } from '../contexts/useApplicantApi'
 
 export const APPLICANT_QUERY_KEY = ['applicants'] as const
 
-export function useApplicantQuery(searchTerm = '') {
+export function useApplicantQuery(searchTerm = '', selectedJobs: string[] = []) {
   const applicantApi = useApplicantApi()
 
   return useQuery({
-    queryKey: [...APPLICANT_QUERY_KEY, searchTerm],
-    queryFn: () => applicantApi.getApplicants({ searchTerm }),
+    queryKey: [...APPLICANT_QUERY_KEY, searchTerm, selectedJobs],
+    queryFn: () => applicantApi.getApplicants({ searchTerm, selectedJobs }),
     placeholderData: (previousData) => previousData,
     retry: false,
     refetchOnWindowFocus: false,

@@ -12,6 +12,7 @@ import { resolveApplicantStageDrop } from './resolveApplicantStageDrop'
 
 interface ApplicantBoardProps {
   searchTerm: string
+  selectedJobs: string[]
 }
 
 interface BoardColumnsProps {
@@ -57,10 +58,13 @@ const BoardMessage = ({
   </div>
 )
 
-export function ApplicantBoard({ searchTerm }: ApplicantBoardProps) {
+export function ApplicantBoard({
+  searchTerm,
+  selectedJobs,
+}: ApplicantBoardProps) {
   const [isRetryingError, setIsRetryingError] = useState(false)
   const { data = [], isError, isFetching, isPending, refetch } =
-    useApplicantQuery(searchTerm)
+    useApplicantQuery(searchTerm, selectedJobs)
   const updateStageMutation = useUpdateApplicantStageMutation()
 
   const handleMoveApplicant = (applicantId: string, stage: ApplicantStage) => {
@@ -90,7 +94,8 @@ export function ApplicantBoard({ searchTerm }: ApplicantBoardProps) {
   const isInitialLoading = isPending && data.length === 0
   const shouldShowError =
     isError || (isRetryingError && isFetching && data.length === 0)
-  const emptyMessage = searchTerm.trim()
+  const hasFilters = Boolean(searchTerm.trim()) || selectedJobs.length > 0
+  const emptyMessage = hasFilters
     ? '검색 조건에 맞는 지원자가 없습니다.'
     : '지원자가 없습니다'
 

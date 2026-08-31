@@ -75,12 +75,12 @@ function renderApplicantBoard(
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  queryClient.setQueryData(['applicants', ''], applicants)
+  queryClient.setQueryData(['applicants', '', []], applicants)
 
   const result = render(
     <QueryClientProvider client={queryClient}>
       <ApplicantApiProvider api={api}>
-        <ApplicantBoard searchTerm="" />
+        <ApplicantBoard searchTerm="" selectedJobs={[]} />
       </ApplicantApiProvider>
     </QueryClientProvider>,
   )
@@ -101,7 +101,7 @@ function renderQueryOwnedBoard(getApplicants: ApplicantApi['getApplicants']) {
   return render(
     <QueryClientProvider client={queryClient}>
       <ApplicantApiProvider api={api}>
-        <ApplicantBoard searchTerm="" />
+        <ApplicantBoard searchTerm="" selectedJobs={[]} />
       </ApplicantApiProvider>
     </QueryClientProvider>,
   )

@@ -86,6 +86,60 @@ describe('createApplicantApi', () => {
     expect(storage.save).not.toHaveBeenCalled()
   })
 
+  it('returns applicants matching any selected job', async () => {
+    const applicants = createApplicantSeed()
+    storedApplicants = applicants
+    const api = createApplicantApi({ storage, behavior })
+
+    await expect(
+      api.getApplicants(
+        {
+          selectedJobs: ['Frontend Engineer', 'Product Designer'],
+        },
+        immediateSuccess,
+      ),
+    ).resolves.toEqual([applicants[0], applicants[2]])
+  })
+
+  it('combines name and selected-job filters without changing stored data', async () => {
+    storedApplicants = [
+      {
+        id: 'applicant-1',
+        name: 'Kim Frontend',
+        position: 'Frontend Engineer',
+        appliedAt: '2026-08-31',
+        stage: APPLICANT_STAGE.DOCUMENT_REVIEW,
+      },
+      {
+        id: 'applicant-2',
+        name: 'Kim Backend',
+        position: 'Backend Engineer',
+        appliedAt: '2026-08-30',
+        stage: APPLICANT_STAGE.INTERVIEW,
+      },
+      {
+        id: 'applicant-3',
+        name: 'Lee Frontend',
+        position: 'Frontend Engineer',
+        appliedAt: '2026-08-29',
+        stage: APPLICANT_STAGE.OFFER,
+      },
+    ]
+    const originalApplicants = storedApplicants.map((applicant) => ({
+      ...applicant,
+    }))
+    const api = createApplicantApi({ storage, behavior })
+
+    await expect(
+      api.getApplicants(
+        { searchTerm: 'kim', selectedJobs: ['Frontend Engineer'] },
+        immediateSuccess,
+      ),
+    ).resolves.toEqual([originalApplicants[0]])
+    expect(storedApplicants).toEqual(originalApplicants)
+    expect(storage.save).not.toHaveBeenCalled()
+  })
+
   it('returns unique seed job options in first-seen order', async () => {
     const api = createApplicantApi({ storage, behavior })
 

@@ -135,7 +135,10 @@ describe('App applicant query states', () => {
     fireEvent.change(search, { target: { value: 'Kim' } })
 
     await waitFor(() => {
-      expect(getApplicants).toHaveBeenLastCalledWith({ searchTerm: 'Kim' })
+      expect(getApplicants).toHaveBeenLastCalledWith({
+        searchTerm: 'Kim',
+        selectedJobs: [],
+      })
     })
     expect(
       screen.getByRole('searchbox', { name: '지원자 이름 검색' }),
@@ -187,7 +190,10 @@ describe('App applicant query states', () => {
     fireEvent.change(search, { target: { value: 'Kim' } })
 
     await waitFor(() => {
-      expect(getApplicants).toHaveBeenLastCalledWith({ searchTerm: 'Kim' })
+      expect(getApplicants).toHaveBeenLastCalledWith({
+        searchTerm: 'Kim',
+        selectedJobs: [],
+      })
     })
     expect(
       await screen.findByRole('article', { name: 'Kim Codex 지원자' }),
@@ -195,6 +201,67 @@ describe('App applicant query states', () => {
     expect(
       screen.queryByRole('article', { name: 'Lee Query 지원자' }),
     ).toBeNull()
+  })
+
+  it('requests and shows applicants filtered by the selected job', async () => {
+    const getApplicants = vi
+      .fn<ApplicantApi['getApplicants']>()
+      .mockResolvedValueOnce([applicant, otherApplicant])
+      .mockResolvedValueOnce([applicant])
+    renderApp(getApplicants)
+
+    fireEvent.click(screen.getByRole('button', { name: '직무 전체' }))
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: 'Frontend Engineer' }),
+    )
+
+    await waitFor(() => {
+      expect(getApplicants).toHaveBeenLastCalledWith({
+        searchTerm: '',
+        selectedJobs: ['Frontend Engineer'],
+      })
+    })
+    expect(
+      await screen.findByRole('article', { name: 'Kim Codex 지원자' }),
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('article', { name: 'Lee Query 지원자' }),
+    ).toBeNull()
+  })
+
+  it('shows a filtered empty state and restores all applicants after clearing jobs', async () => {
+    const getApplicants = vi
+      .fn<ApplicantApi['getApplicants']>()
+      .mockResolvedValueOnce([applicant, otherApplicant])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([applicant, otherApplicant])
+    renderApp(getApplicants)
+
+    fireEvent.click(screen.getByRole('button', { name: '직무 전체' }))
+    const frontendOption = await screen.findByRole('checkbox', {
+      name: 'Frontend Engineer',
+    })
+    fireEvent.click(frontendOption)
+
+    expect(
+      await screen.findByText('검색 조건에 맞는 지원자가 없습니다.'),
+    ).toBeTruthy()
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(5)
+
+    fireEvent.click(frontendOption)
+
+    await waitFor(() => {
+      expect(getApplicants).toHaveBeenLastCalledWith({
+        searchTerm: '',
+        selectedJobs: [],
+      })
+    })
+    expect(
+      await screen.findByRole('article', { name: 'Kim Codex 지원자' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('article', { name: 'Lee Query 지원자' }),
+    ).toBeTruthy()
   })
 
   it('distinguishes an empty search result from an empty applicant collection', async () => {
