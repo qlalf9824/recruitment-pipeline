@@ -9,17 +9,15 @@ const expectedStage = {
   REJECTED: 'rejected',
 } as const satisfies typeof APPLICANT_STAGE
 
-const applicantWithNullableDetails: Applicant = {
+const applicant: Applicant = {
   id: 'applicant-1',
   name: 'Kim Codex',
   position: 'Frontend Engineer',
   appliedAt: '2026-08-31',
   stage: 'documentReview',
-  resume: null,
-  memo: null,
 }
 
 // @ts-expect-error ApplicantStage must reject values outside the fixed stages.
 const invalidStage: ApplicantStage = 'technicalInterview'
 
-export { applicantWithNullableDetails, expectedStage, invalidStage }
+export { applicant, expectedStage, invalidStage }

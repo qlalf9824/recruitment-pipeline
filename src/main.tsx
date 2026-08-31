@@ -1,9 +1,24 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App.tsx'
+import { ApplicantApiProvider } from './contexts/ApplicantApiProvider'
+import { createApplicantApi } from './services/applicantApi'
+import { createLocalStorageApplicantStorage } from './services/applicantStorage'
+import { createMockApiBehaviorService } from './services/mockApiBehavior'
 
-createRoot(document.getElementById("root")!).render(
+const applicantStorage = createLocalStorageApplicantStorage(
+  () => window.localStorage,
+)
+const mockApiBehavior = createMockApiBehaviorService()
+const applicantApi = createApplicantApi({
+  storage: applicantStorage,
+  behavior: mockApiBehavior,
+})
+
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ApplicantApiProvider api={applicantApi}>
+      <App />
+    </ApplicantApiProvider>
   </StrictMode>,
-);
+)

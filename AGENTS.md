@@ -30,18 +30,24 @@ Document only paths that currently exist.
 | `PROMPTS.md` | Records significant AI requests, proposals, user reviews and validation, and final outcomes. |
 | `DECISIONS.md` | Records significant project decisions, considered options, rationale, and trade-offs. |
 | `README.md` | Contains the current React, TypeScript, and Vite starter-template guidance. |
-| `src/main.tsx` | Initializes the React application and renders the root component. |
+| `src/main.tsx` | Creates the default applicant service graph once, installs its provider, and renders the root component. |
 | `src/App.tsx` | Contains the currently empty root UI component. |
-| `src/models/` | Contains domain data models and their compile-time type contracts. |
+| `src/models/` | Contains domain data models, compile-time contracts, and shared runtime guards. |
+| `src/mocks/` | Contains immutable mock seed data factories. |
+| `src/services/` | Contains injected applicant persistence, API behavior, error, and orchestration services. |
+| `src/contexts/` | Contains the applicant API Context, Provider, consumer hook, and their tests. |
+| `docs/superpowers/specs/` | Contains reviewed technical design specifications. |
+| `docs/superpowers/plans/` | Contains executable implementation plans. |
 | `public/` | Contains the `favicon.svg` and `icons.svg` static files. |
 | `index.html` | Provides the Vite application's HTML entry point. |
-| `package.json` | Defines package metadata, dependencies, and the `dev`, `build`, `lint`, and `preview` scripts. |
+| `package.json` | Defines package metadata, dependencies, and the `dev`, `build`, `lint`, `test`, and `preview` scripts. |
 | `package-lock.json` | Locks installed npm dependency versions. |
 | `vite.config.ts` | Defines the Vite configuration with the React plugin. |
+| `vitest.config.ts` | Configures Vitest to run browser-facing tests in jsdom. |
 | `eslint.config.js` | Configures ESLint rules for TypeScript and React. |
 | `tsconfig.json` | References the application and Vite TypeScript configurations. |
 | `tsconfig.app.json` | Defines TypeScript and JSX checks for `src`. |
-| `tsconfig.node.json` | Defines TypeScript checks for `vite.config.ts`. |
+| `tsconfig.node.json` | Defines TypeScript checks for the Vite and Vitest configuration files. |
 
 When a path is added, removed, or moved, or when a file's primary responsibility changes, update this section in the same commit. Do not list planned directories or structures before they exist.
 
