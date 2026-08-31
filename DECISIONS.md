@@ -251,6 +251,55 @@
 
 ---
 
+### DEC-006: Tailwind v4 기반 보드 우선 스타일 전환
+
+- 상태: 채택
+- 결정일: 2026-08-31
+- 관련 요구사항: `2.2 단계별 보드와 지원자 카드 표시`
+- 관련 결정: `DEC-005`
+
+#### 1. 결정해야 했던 문제
+
+기존 지원자 보드는 컴포넌트 전용 plain CSS로 스타일을 보유하고 있었다. 개발 속도와 UI 일관성을 높이기 위해 Tailwind를 도입하되, 전체 UI를 한 번에 바꾸지 않고 현재 완료된 보드부터 전환하면서 유틸리티 감지 방식과 전역 스타일 경계를 정해야 했다.
+
+#### 2. 고려한 선택지
+
+| 선택지 | 기대 효과 | 제약·위험 |
+| --- | --- | --- |
+| plain component CSS 유지 | JSX가 간결하고 컴포넌트별 스타일 파일을 분리할 수 있음 | 반복되는 값과 명명 규칙이 늘고 화면 간 일관성을 수동으로 유지해야 함 |
+| Tailwind utility를 JSX에 직접 사용 | 표준화된 spacing·color·typography utility로 구현 속도와 일관성을 높이고 사용 위치를 JSX에서 바로 확인 가능 | JSX의 class 문자열이 길어지고 Tailwind build 의존성이 추가됨 |
+| `@apply`로 기존 component CSS class 유지 | 기존 class 이름을 유지하면서 utility 토큰을 재사용 가능 | board 전용 class 계층을 다시 만들고 JSX와 CSS를 함께 추적해야 하며 utility-first 전환의 이점이 줄어듦 |
+
+#### 3. 최종 선택
+
+공식 `@tailwindcss/vite` plugin을 사용하는 Tailwind CSS v4를 채택한다. `src/styles.css`는 Tailwind import와 최소 전역 base 선언만 보유하며, 보드의 레이아웃·컬럼·카드·빈 상태는 JSX의 utility로 표현한다. `@apply`로 board class를 재생성하지 않고 `ApplicantBoard.css`는 제거한다.
+
+전체 UI 전환의 첫 범위는 현재 지원자 보드로 제한한다. 로딩과 오류 컴포넌트의 마크업·스타일은 이번 전환에 포함하지 않는다. 고정 다섯 단계의 색상 utility는 `applicantBoardStages.ts`에 완전한 정적 문자열로 선언하고, stage 값으로 class 조각을 동적으로 만들지 않는다.
+
+#### 4. 선택 이유
+
+- 공식 Vite plugin은 기존 Vite pipeline에 Tailwind v4 compilation을 직접 연결한다.
+- 보드 우선 전환은 사용자에게 보이는 완료 화면을 먼저 일관되게 만들면서 로딩·오류 상태의 동작 범위를 불필요하게 넓히지 않는다.
+- JSX의 utility는 spacing, typography, border, surface token을 가까이 두어 반복 화면을 더 빠르게 만들고 일관성을 유지하게 한다.
+- 정적 단계 문자열은 Tailwind가 build 시 모든 상태별 utility를 확실히 생성하게 하며, 고정 stage 표현을 한 구성 파일에서 관리하게 한다.
+
+#### 5. Trade-off / 포기한 점
+
+- utility가 많은 JSX는 plain CSS selector보다 길고 시각적 밀도가 높다.
+- Tailwind와 Vite plugin이라는 새 build dependency 및 업그레이드 대상이 추가된다.
+- loading·error 컴포넌트의 Tailwind 전환과 전체 UI 통일은 후속 작업으로 남는다.
+
+#### 6. AI 제안 검토
+
+| AI 제안 내용 | 처리 결과 | 이유 |
+| --- | --- | --- |
+| plain CSS, direct utility, `@apply` 유지 방식을 비교 | 채택 | 스타일 시스템 전환의 유지보수·일관성·JSX 복잡도 trade-off를 명확히 하기 위해 필요함 |
+| 공식 Tailwind v4 Vite plugin으로 build pipeline 구성 | 채택 | 별도 PostCSS 또는 v3 config 없이 기존 Vite에 맞는 공식 통합 방식임 |
+| 전체 전환 전에 현재 보드를 첫 범위로 전환 | 채택 | 사용자가 전체 전환의 시작 범위를 현재 보드로 지정함 |
+| stage별 class를 동적으로 조합 | 기각 | Tailwind utility 감지를 보장하기 위해 complete static string이 필요함 |
+
+---
+
 ## 새 결정 템플릿
 
 ### DEC-<!-- 번호 -->: <!-- 결정 제목 -->

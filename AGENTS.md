@@ -37,14 +37,15 @@ Document only paths that currently exist.
 | `src/services/` | Contains injected applicant persistence, API behavior, error, and orchestration services. |
 | `src/contexts/` | Contains the applicant API Context, Provider, consumer hook, and their tests. |
 | `src/hooks/` | Contains query hooks that adapt injected services for UI consumers. |
-| `src/components/` | Contains presentation components for applicant loading, error, and content states. |
+| `src/components/` | Contains presentation components for applicant loading, error, content, the Tailwind-based recruitment-stage board, its columns, and applicant cards. |
+| `src/styles.css` | Imports Tailwind CSS and defines the minimal application-wide base styles. |
 | `docs/superpowers/specs/` | Contains reviewed technical design specifications. |
 | `docs/superpowers/plans/` | Contains executable implementation plans. |
 | `public/` | Contains the `favicon.svg` and `icons.svg` static files. |
 | `index.html` | Provides the Vite application's HTML entry point. |
 | `package.json` | Defines package metadata, dependencies, and the `dev`, `build`, `lint`, `test`, and `preview` scripts. |
 | `package-lock.json` | Locks installed npm dependency versions. |
-| `vite.config.ts` | Defines the Vite configuration with the React plugin. |
+| `vite.config.ts` | Defines the Vite configuration with the React and Tailwind plugins. |
 | `vitest.config.ts` | Configures Vitest to run browser-facing tests in jsdom. |
 | `eslint.config.js` | Configures ESLint rules for TypeScript and React. |
 | `tsconfig.json` | References the application and Vite TypeScript configurations. |
