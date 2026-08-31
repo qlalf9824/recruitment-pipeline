@@ -32,6 +32,7 @@ Document only paths that currently exist.
 | `README.md` | Contains the current React, TypeScript, and Vite starter-template guidance. |
 | `src/main.tsx` | Initializes the React application and renders the root component. |
 | `src/App.tsx` | Contains the currently empty root UI component. |
+| `src/models/` | Contains domain data models and their compile-time type contracts. |
 | `public/` | Contains the `favicon.svg` and `icons.svg` static files. |
 | `index.html` | Provides the Vite application's HTML entry point. |
 | `package.json` | Defines package metadata, dependencies, and the `dev`, `build`, `lint`, and `preview` scripts. |
