@@ -14,12 +14,20 @@ import {
 } from './mockApiError'
 
 export interface ApplicantApi {
-  getApplicants(options?: MockApiBehaviorOptions): Promise<Applicant[]>
+  getJobOptions(): Promise<string[]>
+  getApplicants(
+    params?: GetApplicantsParams,
+    options?: MockApiBehaviorOptions,
+  ): Promise<Applicant[]>
   updateApplicantStage(
     id: string,
     stage: ApplicantStage,
     options?: MockApiBehaviorOptions,
   ): Promise<Applicant>
+}
+
+export interface GetApplicantsParams {
+  searchTerm?: string
 }
 
 export interface ApplicantApiDependencies {
@@ -29,6 +37,18 @@ export interface ApplicantApiDependencies {
 
 function cloneApplicants(applicants: Applicant[]): Applicant[] {
   return applicants.map((applicant) => ({ ...applicant }))
+}
+
+function filterApplicantsByName(
+  applicants: Applicant[],
+  searchTerm = '',
+): Applicant[] {
+  const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase()
+  if (!normalizedSearchTerm) return applicants
+
+  return applicants.filter((applicant) =>
+    applicant.name.toLocaleLowerCase().includes(normalizedSearchTerm),
+  )
 }
 
 function throwIfSimulatedFailure(shouldFail: boolean): void {
@@ -62,12 +82,20 @@ export function createApplicantApi({
   behavior,
 }: ApplicantApiDependencies): ApplicantApi {
   return {
-    async getApplicants(options) {
+    async getJobOptions() {
+      return [
+        ...new Set(
+          createApplicantSeed().map((applicant) => applicant.position),
+        ),
+      ]
+    },
+    async getApplicants(params, options) {
       try {
         const resolved = behavior.resolve(options)
         await behavior.wait(resolved.delayMs)
         throwIfSimulatedFailure(resolved.shouldFail)
-        return cloneApplicants(storage.load() ?? createApplicantSeed())
+        const applicants = cloneApplicants(storage.load() ?? createApplicantSeed())
+        return filterApplicantsByName(applicants, params?.searchTerm)
       } catch (error) {
         throw normalizeApiError(error)
       }

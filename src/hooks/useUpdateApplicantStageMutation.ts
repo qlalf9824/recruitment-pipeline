@@ -18,26 +18,24 @@ export function useUpdateApplicantStageMutation() {
       applicantApi.updateApplicantStage(applicantId, stage),
     onMutate: async ({ applicantId, stage }) => {
       await queryClient.cancelQueries({ queryKey: APPLICANT_QUERY_KEY })
-      const previousApplicants =
-        queryClient.getQueryData<Applicant[]>(APPLICANT_QUERY_KEY)
+      const previousApplicantQueries = queryClient.getQueriesData<Applicant[]>({
+        queryKey: APPLICANT_QUERY_KEY,
+      })
 
-      queryClient.setQueryData<Applicant[]>(
-        APPLICANT_QUERY_KEY,
+      queryClient.setQueriesData<Applicant[]>(
+        { queryKey: APPLICANT_QUERY_KEY },
         (applicants) =>
           applicants?.map((applicant) =>
             applicant.id === applicantId ? { ...applicant, stage } : applicant,
           ),
       )
 
-      return { previousApplicants }
+      return { previousApplicantQueries }
     },
     onError: (_error, _variables, context) => {
-      if (context?.previousApplicants) {
-        queryClient.setQueryData(
-          APPLICANT_QUERY_KEY,
-          context.previousApplicants,
-        )
-      }
+      context?.previousApplicantQueries.forEach(([queryKey, applicants]) => {
+        queryClient.setQueryData(queryKey, applicants)
+      })
 
       toast.error('단계 변경을 저장하지 못해 이전 단계로 되돌렸습니다.')
     },

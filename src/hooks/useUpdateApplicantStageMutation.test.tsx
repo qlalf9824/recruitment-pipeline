@@ -38,6 +38,7 @@ describe('useUpdateApplicantStageMutation', () => {
     const updateApplicantStage = vi.fn(() => updateRequest.promise)
     const api: ApplicantApi = {
       getApplicants: vi.fn(async () => [applicant]),
+      getJobOptions: vi.fn(async () => []),
       updateApplicantStage,
     }
     const wrapper = ({ children }: PropsWithChildren) => (
@@ -83,12 +84,15 @@ describe('useUpdateApplicantStageMutation', () => {
   it('rolls back the optimistic stage and reports the failure when saving fails', async () => {
     const queryClient = new QueryClient()
     queryClient.setQueryData(APPLICANT_QUERY_KEY, [applicant])
+    const filteredQueryKey = [...APPLICANT_QUERY_KEY, 'Kim'] as const
+    queryClient.setQueryData(filteredQueryKey, [applicant])
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
     const updateRequest = createDeferred<Applicant>()
     const updateApplicantStage = vi.fn(() => updateRequest.promise)
     const toastError = vi.spyOn(toast, 'error').mockImplementation(() => 'toast-id')
     const api: ApplicantApi = {
       getApplicants: vi.fn(async () => [applicant]),
+      getJobOptions: vi.fn(async () => []),
       updateApplicantStage,
     }
     const wrapper = ({ children }: PropsWithChildren) => (
@@ -109,6 +113,9 @@ describe('useUpdateApplicantStageMutation', () => {
       expect(queryClient.getQueryData<Applicant[]>(APPLICANT_QUERY_KEY)).toEqual([
         { ...applicant, stage: APPLICANT_STAGE.INTERVIEW },
       ])
+      expect(queryClient.getQueryData<Applicant[]>(filteredQueryKey)).toEqual([
+        { ...applicant, stage: APPLICANT_STAGE.INTERVIEW },
+      ])
     })
 
     await act(async () => {
@@ -117,6 +124,7 @@ describe('useUpdateApplicantStageMutation', () => {
     })
 
     expect(queryClient.getQueryData(APPLICANT_QUERY_KEY)).toEqual([applicant])
+    expect(queryClient.getQueryData(filteredQueryKey)).toEqual([applicant])
     expect(toastError).toHaveBeenCalledWith(
       '단계 변경을 저장하지 못해 이전 단계로 되돌렸습니다.',
     )

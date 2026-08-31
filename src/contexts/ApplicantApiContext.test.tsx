@@ -7,6 +7,7 @@ import { useApplicantApi } from './useApplicantApi'
 
 const applicantApi: ApplicantApi = {
   getApplicants: vi.fn(async () => []),
+  getJobOptions: vi.fn(async () => []),
   updateApplicantStage: vi.fn(async (id, stage) => ({
     id,
     name: 'Kim Codex',

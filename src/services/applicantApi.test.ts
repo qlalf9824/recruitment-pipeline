@@ -46,11 +46,66 @@ describe('createApplicantApi', () => {
   it('returns isolated seed data without persisting an initial read', async () => {
     const api = createApplicantApi({ storage, behavior })
 
-    const firstApplicants = await api.getApplicants(immediateSuccess)
+    const firstApplicants = await api.getApplicants(undefined, immediateSuccess)
     firstApplicants[0].name = 'Changed'
-    const secondApplicants = await api.getApplicants(immediateSuccess)
+    const secondApplicants = await api.getApplicants(undefined, immediateSuccess)
 
     expect(secondApplicants).toEqual(createApplicantSeed())
+    expect(storage.save).not.toHaveBeenCalled()
+  })
+
+  it('filters names without changing persisted applicant data', async () => {
+    storedApplicants = [
+      {
+        id: 'applicant-1',
+        name: 'Kim Codex',
+        position: 'Frontend Engineer',
+        appliedAt: '2026-08-31',
+        stage: APPLICANT_STAGE.DOCUMENT_REVIEW,
+      },
+      {
+        id: 'applicant-2',
+        name: 'Lee Query',
+        position: 'Backend Engineer',
+        appliedAt: '2026-08-30',
+        stage: APPLICANT_STAGE.INTERVIEW,
+      },
+    ]
+    const originalApplicants = storedApplicants.map((applicant) => ({
+      ...applicant,
+    }))
+    const api = createApplicantApi({ storage, behavior })
+
+    await expect(
+      api.getApplicants({ searchTerm: 'cOdEx' }, immediateSuccess),
+    ).resolves.toEqual([originalApplicants[0]])
+    await expect(
+      api.getApplicants({ searchTerm: '   ' }, immediateSuccess),
+    ).resolves.toEqual(originalApplicants)
+    expect(storedApplicants).toEqual(originalApplicants)
+    expect(storage.save).not.toHaveBeenCalled()
+  })
+
+  it('returns unique seed job options in first-seen order', async () => {
+    const api = createApplicantApi({ storage, behavior })
+
+    await expect(api.getJobOptions()).resolves.toEqual([
+      'Frontend Engineer',
+      'Backend Engineer',
+      'Product Designer',
+      'Data Analyst',
+      'Product Manager',
+    ])
+  })
+
+  it('gets job options without behavior or storage dependencies', async () => {
+    const api = createApplicantApi({ storage, behavior })
+
+    await api.getJobOptions()
+
+    expect(behavior.resolve).not.toHaveBeenCalled()
+    expect(behavior.wait).not.toHaveBeenCalled()
+    expect(storage.load).not.toHaveBeenCalled()
     expect(storage.save).not.toHaveBeenCalled()
   })
 
@@ -91,7 +146,7 @@ describe('createApplicantApi', () => {
     )
 
     const recreatedApi = createApplicantApi({ storage, behavior })
-    const applicants = await recreatedApi.getApplicants(immediateSuccess)
+    const applicants = await recreatedApi.getApplicants(undefined, immediateSuccess)
 
     expect(applicants).toEqual(
       initialApplicants.map((applicant) =>
@@ -108,7 +163,9 @@ describe('createApplicantApi', () => {
     storedApplicants = persisted
     const api = createApplicantApi({ storage, behavior })
 
-    await expect(api.getApplicants(immediateSuccess)).resolves.toEqual(persisted)
+    await expect(
+      api.getApplicants(undefined, immediateSuccess),
+    ).resolves.toEqual(persisted)
   })
 
   it('waits before rejecting an invalid stage and does not load data', async () => {
@@ -138,7 +195,9 @@ describe('createApplicantApi', () => {
     })
     const api = createApplicantApi({ storage, behavior })
 
-    await expect(api.getApplicants(immediateSuccess)).rejects.toMatchObject({
+    await expect(
+      api.getApplicants(undefined, immediateSuccess),
+    ).rejects.toMatchObject({
       status: 500,
       code: 'STORAGE_DATA_INVALID',
     })
@@ -176,7 +235,9 @@ describe('createApplicantApi', () => {
     behavior.resolve = vi.fn(() => ({ shouldFail: true, delayMs: 0 }))
     const api = createApplicantApi({ storage, behavior })
 
-    await expect(api.getApplicants(immediateSuccess)).rejects.toMatchObject({
+    await expect(
+      api.getApplicants(undefined, immediateSuccess),
+    ).rejects.toMatchObject({
       status: 500,
       code: 'SIMULATED_FAILURE',
     })
@@ -205,7 +266,9 @@ describe('createApplicantApi', () => {
     })
     const api = createApplicantApi({ storage, behavior })
 
-    await expect(api.getApplicants(immediateSuccess)).rejects.toMatchObject({
+    await expect(
+      api.getApplicants(undefined, immediateSuccess),
+    ).rejects.toMatchObject({
       status: 500,
       code: 'INTERNAL_ERROR',
       message: 'An unexpected error occurred.',
@@ -231,7 +294,7 @@ describe('Applicant API persistence integration', () => {
     )
 
     const recreatedApi = createApi()
-    const applicants = await recreatedApi.getApplicants(immediateSuccess)
+    const applicants = await recreatedApi.getApplicants(undefined, immediateSuccess)
 
     expect(
       applicants.find(({ id }) => id === 'applicant-001')?.stage,
