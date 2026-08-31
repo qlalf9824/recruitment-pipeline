@@ -9,6 +9,8 @@ const interviewApplicant: Applicant = {
   position: 'Backend Engineer',
   appliedAt: '2026-08-21',
   stage: APPLICANT_STAGE.INTERVIEW,
+  resume: null,
+  memo: null,
 }
 
 describe('resolveApplicantStageDrop', () => {

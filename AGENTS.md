@@ -39,12 +39,12 @@ Document only paths that currently exist.
 | `README.md` | Contains the current React, TypeScript, and Vite starter-template guidance. |
 | `src/main.tsx` | Creates the application-lifetime QueryClient and default applicant service graph, installs both providers, and renders the root component. |
 | `src/App.tsx` | Mounts the application snackbar once and renders the content entry point. |
-| `src/models/` | Contains domain data models, compile-time contracts, and shared runtime guards. |
+| `src/models/` | Contains applicant list and detail fields, compile-time contracts, and shared runtime guards. |
 | `src/mocks/` | Contains immutable mock seed data factories. |
-| `src/services/` | Contains injected applicant persistence, read-only API filtering, API behavior, error, and orchestration services. |
+| `src/services/` | Contains injected applicant persistence with legacy-data normalization, read-only API filtering, API behavior, error, and orchestration services. |
 | `src/contexts/` | Contains the applicant API Context, Provider, consumer hook, and their tests. |
 | `src/hooks/` | Contains search-keyed applicant queries, static job-option queries, and stage-mutation hooks with cross-query optimistic cache updates and rollback. |
-| `src/components/` | Contains Tailwind-based content and filter UI, plus the recruitment-stage board that owns applicant query states, columns, cards, drag-and-drop adapters, and drop validation. |
+| `src/components/` | Contains Tailwind-based content, filter and applicant-detail modal UI, plus the recruitment-stage board that owns applicant query states, columns, cards, drag-and-drop adapters, and drop validation. |
 | `src/styles.css` | Imports Tailwind CSS and defines the minimal application-wide base styles. |
 | `src/testSetup.ts` | Provides browser API test doubles required by jsdom component tests. |
 | `docs/superpowers/specs/` | Contains reviewed technical design specifications. |

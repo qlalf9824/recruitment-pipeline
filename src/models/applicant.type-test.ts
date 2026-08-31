@@ -15,6 +15,8 @@ const applicant: Applicant = {
   position: 'Frontend Engineer',
   appliedAt: '2026-08-31',
   stage: 'documentReview',
+  resume: null,
+  memo: null,
 }
 
 // @ts-expect-error ApplicantStage must reject values outside the fixed stages.

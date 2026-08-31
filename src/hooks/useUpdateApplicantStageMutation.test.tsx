@@ -16,6 +16,8 @@ const applicant: Applicant = {
   position: 'Frontend Engineer',
   appliedAt: '2026-08-31',
   stage: APPLICANT_STAGE.DOCUMENT_REVIEW,
+  resume: null,
+  memo: null,
 }
 
 function createDeferred<T>() {

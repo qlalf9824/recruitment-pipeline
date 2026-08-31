@@ -8,6 +8,7 @@ import { useUpdateApplicantStageMutation } from '../hooks/useUpdateApplicantStag
 import type { Applicant, ApplicantStage } from '../models/applicant'
 import { APPLICANT_BOARD_STAGES } from './applicantBoardStages'
 import { BoardColumn } from './BoardColumn'
+import { ApplicantDetailModal } from './ApplicantDetailModal'
 import { resolveApplicantStageDrop } from './resolveApplicantStageDrop'
 
 interface ApplicantBoardProps {
@@ -18,9 +19,14 @@ interface ApplicantBoardProps {
 interface BoardColumnsProps {
   applicants: Applicant[]
   movingApplicantId?: string
+  onSelectApplicant: (applicantId: string) => void
 }
 
-const BoardColumns = ({ applicants, movingApplicantId }: BoardColumnsProps) => {
+const BoardColumns = ({
+  applicants,
+  movingApplicantId,
+  onSelectApplicant,
+}: BoardColumnsProps) => {
   const isBoardEmpty = applicants.length === 0
 
   return APPLICANT_BOARD_STAGES.map(
@@ -33,6 +39,7 @@ const BoardColumns = ({ applicants, movingApplicantId }: BoardColumnsProps) => {
         isBoardEmpty={isBoardEmpty}
         label={label}
         movingApplicantId={movingApplicantId}
+        onSelectApplicant={onSelectApplicant}
         stage={stage}
         statusClassName={statusClassName}
       />
@@ -63,6 +70,9 @@ export function ApplicantBoard({
   selectedJobs,
 }: ApplicantBoardProps) {
   const [isRetryingError, setIsRetryingError] = useState(false)
+  const [selectedApplicantId, setSelectedApplicantId] = useState<string | null>(
+    null,
+  )
   const { data = [], isError, isFetching, isPending, refetch } =
     useApplicantQuery(searchTerm, selectedJobs)
   const updateStageMutation = useUpdateApplicantStageMutation()
@@ -88,6 +98,14 @@ export function ApplicantBoard({
     void refetch()
   }
 
+  const handleSelectApplicant = (applicantId: string) => {
+    setSelectedApplicantId(applicantId)
+  }
+
+  const handleCloseApplicantDetail = () => {
+    setSelectedApplicantId(null)
+  }
+
   const movingApplicantId = updateStageMutation.isPending
     ? updateStageMutation.variables?.applicantId
     : undefined
@@ -98,58 +116,67 @@ export function ApplicantBoard({
   const emptyMessage = hasFilters
     ? '검색 조건에 맞는 지원자가 없습니다.'
     : '지원자가 없습니다'
+  const selectedApplicant =
+    data.find((applicant) => applicant.id === selectedApplicantId) ?? null
 
   return (
-    <div
-      aria-busy={isFetching}
-      aria-label="채용 단계 보드"
-      className="overflow-x-auto rounded-[14px] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-blue-600"
-      role="region"
-      tabIndex={0}
-    >
-      <DragDropProvider
-        onDragEnd={handleDragEnd}
-        plugins={(defaults) => [
-          ...defaults,
-          Feedback.configure({ dropAnimation: null }),
-        ]}
+    <>
+      <div
+        aria-busy={isFetching}
+        aria-label="채용 단계 보드"
+        className="overflow-x-auto rounded-[14px] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-blue-600"
+        role="region"
+        tabIndex={0}
       >
-        <div
-          aria-label="채용 단계"
-          className="grid min-w-[1200px] grid-cols-5 gap-3"
+        <DragDropProvider
+          onDragEnd={handleDragEnd}
+          plugins={(defaults) => [
+            ...defaults,
+            Feedback.configure({ dropAnimation: null }),
+          ]}
         >
-          <BoardColumns
-            applicants={shouldShowError || isInitialLoading ? [] : data}
-            movingApplicantId={movingApplicantId}
-          />
-          {isInitialLoading && (
-            <BoardMessage
-              label="지원자 정보를 불러오는 중입니다."
-              role="status"
-            >
-              지원자 정보를 불러오는 중입니다.
-            </BoardMessage>
-          )}
-          {shouldShowError && (
-            <BoardMessage role="alert">
-              <p className="font-semibold text-zinc-700">
-                지원자 정보를 불러오지 못했습니다.
-              </p>
-              <button
-                className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-blue-300"
-                disabled={isFetching}
-                onClick={handleRetry}
-                type="button"
+          <div
+            aria-label="채용 단계"
+            className="grid min-w-[1200px] grid-cols-5 gap-3"
+          >
+            <BoardColumns
+              applicants={shouldShowError || isInitialLoading ? [] : data}
+              movingApplicantId={movingApplicantId}
+              onSelectApplicant={handleSelectApplicant}
+            />
+            {isInitialLoading && (
+              <BoardMessage
+                label="지원자 정보를 불러오는 중입니다."
+                role="status"
               >
-                {isFetching ? '다시 시도 중' : '다시 시도'}
-              </button>
-            </BoardMessage>
-          )}
-          {!isPending && !shouldShowError && data.length === 0 && (
-            <BoardMessage>{emptyMessage}</BoardMessage>
-          )}
-        </div>
-      </DragDropProvider>
-    </div>
+                지원자 정보를 불러오는 중입니다.
+              </BoardMessage>
+            )}
+            {shouldShowError && (
+              <BoardMessage role="alert">
+                <p className="font-semibold text-zinc-700">
+                  지원자 정보를 불러오지 못했습니다.
+                </p>
+                <button
+                  className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-blue-300"
+                  disabled={isFetching}
+                  onClick={handleRetry}
+                  type="button"
+                >
+                  {isFetching ? '다시 시도 중' : '다시 시도'}
+                </button>
+              </BoardMessage>
+            )}
+            {!isPending && !shouldShowError && data.length === 0 && (
+              <BoardMessage>{emptyMessage}</BoardMessage>
+            )}
+          </div>
+        </DragDropProvider>
+      </div>
+      <ApplicantDetailModal
+        applicant={selectedApplicant}
+        onClose={handleCloseApplicantDetail}
+      />
+    </>
   )
 }

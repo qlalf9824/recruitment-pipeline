@@ -21,6 +21,7 @@ describe('BoardColumn', () => {
         countClassName="text-blue-500"
         isBoardEmpty={false}
         label="면접"
+        onSelectApplicant={vi.fn()}
         stage={APPLICANT_STAGE.INTERVIEW}
         statusClassName="bg-blue-500"
       />,

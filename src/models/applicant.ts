@@ -20,4 +20,6 @@ export interface Applicant {
   position: string;
   appliedAt: string;
   stage: ApplicantStage;
+  resume: string | null;
+  memo: string | null;
 }

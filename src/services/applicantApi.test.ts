@@ -62,6 +62,8 @@ describe('createApplicantApi', () => {
         position: 'Frontend Engineer',
         appliedAt: '2026-08-31',
         stage: APPLICANT_STAGE.DOCUMENT_REVIEW,
+        resume: null,
+        memo: null,
       },
       {
         id: 'applicant-2',
@@ -69,6 +71,8 @@ describe('createApplicantApi', () => {
         position: 'Backend Engineer',
         appliedAt: '2026-08-30',
         stage: APPLICANT_STAGE.INTERVIEW,
+        resume: null,
+        memo: null,
       },
     ]
     const originalApplicants = storedApplicants.map((applicant) => ({
@@ -109,6 +113,8 @@ describe('createApplicantApi', () => {
         position: 'Frontend Engineer',
         appliedAt: '2026-08-31',
         stage: APPLICANT_STAGE.DOCUMENT_REVIEW,
+        resume: null,
+        memo: null,
       },
       {
         id: 'applicant-2',
@@ -116,6 +122,8 @@ describe('createApplicantApi', () => {
         position: 'Backend Engineer',
         appliedAt: '2026-08-30',
         stage: APPLICANT_STAGE.INTERVIEW,
+        resume: null,
+        memo: null,
       },
       {
         id: 'applicant-3',
@@ -123,6 +131,8 @@ describe('createApplicantApi', () => {
         position: 'Frontend Engineer',
         appliedAt: '2026-08-29',
         stage: APPLICANT_STAGE.OFFER,
+        resume: null,
+        memo: null,
       },
     ]
     const originalApplicants = storedApplicants.map((applicant) => ({

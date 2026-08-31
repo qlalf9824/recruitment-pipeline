@@ -9,6 +9,7 @@ export interface BoardColumnProps {
   isBoardEmpty: boolean
   label: string
   movingApplicantId?: string
+  onSelectApplicant: (applicantId: string) => void
   stage: ApplicantStage
   statusClassName: string
 }
@@ -20,6 +21,7 @@ export function BoardColumn({
   isBoardEmpty,
   label,
   movingApplicantId,
+  onSelectApplicant,
   stage,
   statusClassName,
 }: BoardColumnProps) {
@@ -56,6 +58,7 @@ export function BoardColumn({
                 key={applicant.id}
                 applicant={applicant}
                 isDisabled={movingApplicantId === applicant.id}
+                onSelect={onSelectApplicant}
               />
             ))}
           </ul>

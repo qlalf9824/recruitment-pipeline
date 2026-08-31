@@ -5,11 +5,13 @@ import { ApplicantCard } from './ApplicantCard'
 interface DraggableApplicantCardProps {
   applicant: Applicant
   isDisabled?: boolean
+  onSelect: (applicantId: string) => void
 }
 
 export function DraggableApplicantCard({
   applicant,
   isDisabled = false,
+  onSelect,
 }: DraggableApplicantCardProps) {
   const { isDragging, ref } = useDraggable({
     id: applicant.id,
@@ -25,7 +27,12 @@ export function DraggableApplicantCard({
           isDragging ? 'cursor-grabbing opacity-50' : ''
         }`}
       >
-        <ApplicantCard applicant={applicant} />
+        <ApplicantCard
+          applicant={applicant}
+          onSelect={() => {
+            if (!isDragging) onSelect(applicant.id)
+          }}
+        />
       </div>
     </li>
   )

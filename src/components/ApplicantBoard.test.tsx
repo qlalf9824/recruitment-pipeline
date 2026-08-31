@@ -1,4 +1,12 @@
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Feedback } from '@dnd-kit/dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -11,6 +19,9 @@ import { ApplicantBoard } from './ApplicantBoard'
 const dragDropProvider = vi.hoisted(() => ({
   onDragEnd: undefined as undefined | ((event: unknown) => void),
   plugins: undefined as
+    | undefined
+    | ((defaults: unknown[]) => unknown[]),
+  sensors: undefined as
     | undefined
     | ((defaults: unknown[]) => unknown[]),
 }))
@@ -26,13 +37,16 @@ vi.mock('@dnd-kit/react', async () => {
       children,
       onDragEnd,
       plugins,
+      sensors,
     }: {
       children: React.ReactNode
       onDragEnd?: (event: unknown) => void
       plugins?: (defaults: unknown[]) => unknown[]
+      sensors?: (defaults: unknown[]) => unknown[]
     }) => {
       dragDropProvider.onDragEnd = onDragEnd
       dragDropProvider.plugins = plugins
+      dragDropProvider.sensors = sensors
       return children
     },
   }
@@ -44,6 +58,8 @@ const interviewApplicant: Applicant = {
   position: 'Backend Engineer',
   appliedAt: '2026-08-21',
   stage: APPLICANT_STAGE.INTERVIEW,
+  resume: '백엔드 시스템 개발 경력 5년',
+  memo: '기술 면접 질문 준비',
 }
 
 const rejectedApplicant: Applicant = {
@@ -52,23 +68,27 @@ const rejectedApplicant: Applicant = {
   position: 'Product Designer',
   appliedAt: '2026-08-22',
   stage: APPLICANT_STAGE.REJECTED,
+  resume: null,
+  memo: null,
 }
 
 afterEach(() => {
   cleanup()
   dragDropProvider.onDragEnd = undefined
   dragDropProvider.plugins = undefined
+  dragDropProvider.sensors = undefined
 })
 
 function renderApplicantBoard(
   applicants: Applicant[],
 ) {
+  const getApplicants = vi.fn(async () => applicants)
   const updateApplicantStage = vi.fn(async (id: string, stage: Applicant['stage']) => ({
     ...applicants.find((applicant) => applicant.id === id)!,
     stage,
   }))
   const api: ApplicantApi = {
-    getApplicants: vi.fn(async () => applicants),
+    getApplicants,
     getJobOptions: vi.fn(async () => []),
     updateApplicantStage,
   }
@@ -85,7 +105,7 @@ function renderApplicantBoard(
     </QueryClientProvider>,
   )
 
-  return { ...result, updateApplicantStage }
+  return { ...result, getApplicants, updateApplicantStage }
 }
 
 function renderQueryOwnedBoard(getApplicants: ApplicantApi['getApplicants']) {
@@ -149,6 +169,56 @@ describe('ApplicantBoard', () => {
     expect(within(rejectedColumn).getAllByRole('listitem')).toHaveLength(1)
   })
 
+  it('opens the selected applicant details from the list without another API call', () => {
+    const { getApplicants } = renderApplicantBoard([
+      interviewApplicant,
+      rejectedApplicant,
+    ])
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '이준호 지원자 상세 보기' }),
+    )
+
+    const dialog = screen.getByRole('dialog', { name: '이준호 지원자 상세' })
+    expect(within(dialog).getByText('Backend Engineer')).toBeTruthy()
+    expect(within(dialog).getByText('2026-08-21')).toBeTruthy()
+    expect(within(dialog).getByText('면접')).toBeTruthy()
+    expect(within(dialog).getByText('백엔드 시스템 개발 경력 5년')).toBeTruthy()
+    expect(within(dialog).getByText('기술 면접 질문 준비')).toBeTruthy()
+    expect(getApplicants).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps empty detail sections visible and blocks dismissal from the dimmed background', () => {
+    renderApplicantBoard([rejectedApplicant])
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '박서연 지원자 상세 보기' }),
+    )
+
+    const dialog = screen.getByRole('dialog', { name: '박서연 지원자 상세' })
+    expect(
+      within(dialog).getByRole('region', { name: '이력 정보' }).textContent,
+    ).toBe('이력 정보')
+    expect(
+      within(dialog).getByRole('region', { name: '메모' }).textContent,
+    ).toBe('메모')
+
+    fireEvent.pointerDown(screen.getByTestId('applicant-detail-overlay'))
+
+    expect(screen.getByRole('dialog', { name: '박서연 지원자 상세' })).toBeTruthy()
+  })
+
+  it('closes the applicant details with its close button', () => {
+    renderApplicantBoard([interviewApplicant])
+    fireEvent.click(
+      screen.getByRole('button', { name: '이준호 지원자 상세 보기' }),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '상세 보기 닫기' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('shows one empty message in an unpopulated column when the board has data', () => {
     renderApplicantBoard([interviewApplicant])
     const emptyColumnLabels = ['서류검토', '처우협의', '최종합격', '불합격']
@@ -209,5 +279,7 @@ describe('ApplicantBoard', () => {
       plugin: Feedback,
       options: { dropAnimation: null },
     })
+
+    expect(dragDropProvider.sensors).toBeUndefined()
   })
 })

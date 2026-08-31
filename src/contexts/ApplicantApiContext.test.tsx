@@ -14,6 +14,8 @@ const applicantApi: ApplicantApi = {
     position: 'Frontend Engineer',
     appliedAt: '2026-08-31',
     stage,
+    resume: null,
+    memo: null,
   })),
 }
 

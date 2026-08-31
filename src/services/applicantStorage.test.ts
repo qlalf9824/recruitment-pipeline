@@ -16,6 +16,8 @@ const applicant: Applicant = {
   position: 'Frontend Engineer',
   appliedAt: '2026-08-31',
   stage: APPLICANT_STAGE.DOCUMENT_REVIEW,
+  resume: 'Frontend resume',
+  memo: null,
 }
 
 describe('createLocalStorageApplicantStorage', () => {
@@ -44,6 +46,22 @@ describe('createLocalStorageApplicantStorage', () => {
     storage.save([applicant])
 
     expect(storage.load()).toEqual([applicant])
+  })
+
+  it('normalizes missing detail fields from legacy stored applicants', () => {
+    const storage = createLocalStorageApplicantStorage(() => browserStorage)
+    const legacyApplicant = {
+      id: applicant.id,
+      name: applicant.name,
+      position: applicant.position,
+      appliedAt: applicant.appliedAt,
+      stage: applicant.stage,
+    }
+    browserStorage.setItem(STORAGE_KEY, JSON.stringify([legacyApplicant]))
+
+    expect(storage.load()).toEqual([
+      { ...legacyApplicant, resume: null, memo: null },
+    ])
   })
 
   it.each([
@@ -82,7 +100,9 @@ describe('createLocalStorageApplicantStorage', () => {
     ],
     ['wrong stage type', JSON.stringify([{ ...applicant, stage: 1 }])],
     ['invalid stage', JSON.stringify([{ ...applicant, stage: 'unknown' }])],
-    ['extra detail field', JSON.stringify([{ ...applicant, memo: null }])],
+    ['wrong resume type', JSON.stringify([{ ...applicant, resume: 1 }])],
+    ['wrong memo type', JSON.stringify([{ ...applicant, memo: false }])],
+    ['unknown extra field', JSON.stringify([{ ...applicant, extra: null }])],
     ['duplicate IDs', JSON.stringify([applicant, { ...applicant }])],
   ])('rejects %s without replacing the stored value', (_label, rawValue) => {
     const storage = createLocalStorageApplicantStorage(() => browserStorage)
