@@ -281,7 +281,7 @@ describe('App applicant stage movement', () => {
     expect(getApplicants).toHaveBeenCalledTimes(2)
   })
 
-  it('ignores a repeated move from the latest pending render and keeps the card in its source column', async () => {
+  it('moves the card optimistically and ignores a repeated move while saving', async () => {
     const updateRequest = createDeferred<Applicant>()
     const getApplicants = vi.fn(async () => [applicant, otherApplicant])
     const updateApplicantStage = vi.fn(() => updateRequest.promise)
@@ -304,12 +304,12 @@ describe('App applicant stage movement', () => {
     expect(updateApplicantStage).toHaveBeenCalledTimes(1)
     expect(
       within(
-        screen.getByRole('region', { name: '서류검토 단계' }),
+        screen.getByRole('region', { name: '면접 단계' }),
       ).getByRole('article', { name: 'Kim Codex 지원자' }),
     ).toBeTruthy()
     expect(
       within(
-        screen.getByRole('region', { name: '면접 단계' }),
+        screen.getByRole('region', { name: '서류검토 단계' }),
       ).queryByRole('article', { name: 'Kim Codex 지원자' }),
     ).toBeNull()
 
@@ -322,7 +322,7 @@ describe('App applicant stage movement', () => {
     })
   })
 
-  it('does not refetch or move the card when saving its stage fails', async () => {
+  it('rolls the card back and shows a snackbar when saving its stage fails', async () => {
     const updateRequest = createDeferred<Applicant>()
     const getApplicants = vi.fn(async () => [applicant, otherApplicant])
     const updateApplicantStage = vi.fn(() => updateRequest.promise)
@@ -347,13 +347,16 @@ describe('App applicant stage movement', () => {
       }
     })
 
-    await waitFor(() => {
-      expect(
-        sourceArticle.closest('li')?.querySelector('[aria-disabled="true"]'),
-      ).toBeNull()
-    })
+    const rolledBackArticle = await within(
+      screen.getByRole('region', { name: '서류검토 단계' }),
+    ).findByRole('article', { name: 'Kim Codex 지원자' })
+    expect(
+      rolledBackArticle.closest('li')?.querySelector('[aria-disabled="true"]'),
+    ).toBeNull()
     expect(updateApplicantStage).toHaveBeenCalledTimes(1)
-    expect(getApplicants).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(getApplicants).toHaveBeenCalledTimes(2)
+    })
     expect(
       within(
         screen.getByRole('region', { name: '서류검토 단계' }),
@@ -364,5 +367,10 @@ describe('App applicant stage movement', () => {
         screen.getByRole('region', { name: '면접 단계' }),
       ).queryByRole('article', { name: 'Kim Codex 지원자' }),
     ).toBeNull()
+    expect(
+      await screen.findByText(
+        '단계 변경을 저장하지 못해 이전 단계로 되돌렸습니다.',
+      ),
+    ).toBeTruthy()
   })
 })
