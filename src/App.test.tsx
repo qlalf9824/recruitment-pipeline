@@ -72,20 +72,25 @@ describe('App applicant query states', () => {
     ).toBeTruthy()
   })
 
-  it('shows the applicant count after a successful request', async () => {
-    renderApp(vi.fn(async () => [applicant]))
+  it('shows the applicant board after a successful request', async () => {
+    const getApplicants = vi.fn(async () => [applicant])
+    renderApp(getApplicants)
 
     expect(
-      await screen.findByText('지원자 1명을 불러왔습니다.'),
+      await screen.findByRole('heading', { level: 1, name: '지원자 관리' }),
     ).toBeTruthy()
+    expect(screen.getByRole('region', { name: '채용 단계 보드' })).toBeTruthy()
+    expect(
+      screen.getByRole('article', { name: 'Kim Codex 지원자' }),
+    ).toBeTruthy()
+    expect(getApplicants).toHaveBeenCalledTimes(1)
   })
 
   it('passes an empty applicant result to the content state', async () => {
     renderApp(vi.fn(async () => []))
 
-    expect(
-      await screen.findByText('지원자 0명을 불러왔습니다.'),
-    ).toBeTruthy()
+    expect(await screen.findAllByRole('heading', { level: 2 })).toHaveLength(5)
+    expect(screen.getAllByText('지원자가 없습니다')).toHaveLength(1)
   })
 
   it('shows a safe error state and retry action when the request fails', async () => {
@@ -109,7 +114,7 @@ describe('App applicant query states', () => {
     )
 
     expect(
-      await screen.findByText('지원자 1명을 불러왔습니다.'),
+      await screen.findByRole('article', { name: 'Kim Codex 지원자' }),
     ).toBeTruthy()
     expect(getApplicants).toHaveBeenCalledTimes(2)
   })
@@ -160,7 +165,7 @@ describe('App applicant query states', () => {
   it('does not refetch after focus or reconnect events', async () => {
     const getApplicants = vi.fn(async () => [applicant])
     renderApp(getApplicants)
-    await screen.findByText('지원자 1명을 불러왔습니다.')
+    await screen.findByRole('article', { name: 'Kim Codex 지원자' })
 
     await act(async () => {
       window.dispatchEvent(new Event('focus'))
