@@ -1,5 +1,6 @@
-import type { Applicant } from '../models/applicant'
-import { ApplicantCard } from './ApplicantCard'
+import { useDroppable } from '@dnd-kit/react'
+import type { Applicant, ApplicantStage } from '../models/applicant'
+import { DraggableApplicantCard } from './DraggableApplicantCard'
 
 export interface BoardColumnProps {
   applicants: Applicant[]
@@ -7,6 +8,8 @@ export interface BoardColumnProps {
   countClassName: string
   isBoardEmpty: boolean
   label: string
+  movingApplicantId?: string
+  stage: ApplicantStage
   statusClassName: string
 }
 
@@ -16,11 +19,18 @@ export function BoardColumn({
   countClassName,
   isBoardEmpty,
   label,
+  movingApplicantId,
+  stage,
   statusClassName,
 }: BoardColumnProps) {
+  const { isDropTarget, ref } = useDroppable({ id: stage })
+
   return (
     <section
-      className={`min-w-0 rounded-xl border p-3 ${columnClassName}`}
+      ref={ref}
+      className={`min-w-0 rounded-xl border p-3 ${columnClassName} ${
+        isDropTarget ? 'ring-2 ring-inset ring-blue-500' : ''
+      }`}
       role="region"
       aria-label={`${label} 단계`}
     >
@@ -42,9 +52,11 @@ export function BoardColumn({
         ) : (
           <ul className="grid list-none gap-2.5 p-0 m-0">
             {applicants.map((applicant) => (
-              <li className="min-w-0" key={applicant.id}>
-                <ApplicantCard applicant={applicant} />
-              </li>
+              <DraggableApplicantCard
+                key={applicant.id}
+                applicant={applicant}
+                isDisabled={movingApplicantId === applicant.id}
+              />
             ))}
           </ul>
         )

@@ -79,6 +79,29 @@ describe('createApplicantApi', () => {
     expect(storage.save).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps one stage update after recreating the API graph over the same storage', async () => {
+    const initialApplicants = createApplicantSeed()
+    const target = initialApplicants[0]
+    const firstApi = createApplicantApi({ storage, behavior })
+
+    await firstApi.updateApplicantStage(
+      target.id,
+      APPLICANT_STAGE.OFFER,
+      immediateSuccess,
+    )
+
+    const recreatedApi = createApplicantApi({ storage, behavior })
+    const applicants = await recreatedApi.getApplicants(immediateSuccess)
+
+    expect(applicants).toEqual(
+      initialApplicants.map((applicant) =>
+        applicant.id === target.id
+          ? { ...applicant, stage: APPLICANT_STAGE.OFFER }
+          : applicant,
+      ),
+    )
+  })
+
   it('uses persisted applicants for later reads', async () => {
     const persisted = createApplicantSeed()
     persisted[0].stage = APPLICANT_STAGE.HIRED

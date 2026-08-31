@@ -1,8 +1,39 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { Feedback } from '@dnd-kit/dom'
 import { APPLICANT_STAGE } from '../models/applicant'
 import type { Applicant } from '../models/applicant'
 import { ApplicantBoard } from './ApplicantBoard'
+
+const dragDropProvider = vi.hoisted(() => ({
+  onDragEnd: undefined as undefined | ((event: unknown) => void),
+  plugins: undefined as
+    | undefined
+    | ((defaults: unknown[]) => unknown[]),
+}))
+
+vi.mock('@dnd-kit/react', async () => {
+  const actual = await vi.importActual<typeof import('@dnd-kit/react')>(
+    '@dnd-kit/react',
+  )
+
+  return {
+    ...actual,
+    DragDropProvider: ({
+      children,
+      onDragEnd,
+      plugins,
+    }: {
+      children: React.ReactNode
+      onDragEnd?: (event: unknown) => void
+      plugins?: (defaults: unknown[]) => unknown[]
+    }) => {
+      dragDropProvider.onDragEnd = onDragEnd
+      dragDropProvider.plugins = plugins
+      return children
+    },
+  }
+})
 
 const interviewApplicant: Applicant = {
   id: 'interview-applicant',
@@ -20,13 +51,27 @@ const rejectedApplicant: Applicant = {
   stage: APPLICANT_STAGE.REJECTED,
 }
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  dragDropProvider.onDragEnd = undefined
+  dragDropProvider.plugins = undefined
+})
+
+function renderApplicantBoard(
+  applicants: Applicant[],
+  onMoveApplicant = vi.fn(),
+) {
+  return render(
+    <ApplicantBoard
+      applicants={applicants}
+      onMoveApplicant={onMoveApplicant}
+    />,
+  )
+}
 
 describe('ApplicantBoard', () => {
   it('groups each applicant in its matching fixed-stage column', () => {
-    render(
-      <ApplicantBoard applicants={[interviewApplicant, rejectedApplicant]} />,
-    )
+    renderApplicantBoard([interviewApplicant, rejectedApplicant])
 
     const headings = screen.getAllByRole('heading', { level: 2 })
     expect(headings.map((heading) => heading.textContent)).toEqual([
@@ -58,7 +103,7 @@ describe('ApplicantBoard', () => {
   })
 
   it('shows one empty message in an unpopulated column when the board has data', () => {
-    render(<ApplicantBoard applicants={[interviewApplicant]} />)
+    renderApplicantBoard([interviewApplicant])
     const emptyColumnLabels = ['서류검토', '처우협의', '최종합격', '불합격']
 
     emptyColumnLabels.forEach((label) => {
@@ -71,7 +116,7 @@ describe('ApplicantBoard', () => {
   })
 
   it('keeps five zero-count headers and shows one shared message when all data is empty', () => {
-    render(<ApplicantBoard applicants={[]} />)
+    renderApplicantBoard([])
     const headings = screen.getAllByRole('heading', { level: 2 })
     expect(headings.map((heading) => heading.textContent)).toEqual([
       '서류검토0',
@@ -81,5 +126,41 @@ describe('ApplicantBoard', () => {
       '불합격0',
     ])
     expect(screen.getAllByText('지원자가 없습니다')).toHaveLength(1)
+  })
+
+  it('delegates a valid provider drag-end move to the move callback once', () => {
+    const onMoveApplicant = vi.fn()
+    renderApplicantBoard([interviewApplicant], onMoveApplicant)
+
+    expect(dragDropProvider.onDragEnd).toBeTruthy()
+
+    dragDropProvider.onDragEnd?.({
+      canceled: false,
+      operation: {
+        source: { id: interviewApplicant.id },
+        target: { id: APPLICANT_STAGE.OFFER },
+      },
+    })
+
+    expect(onMoveApplicant).toHaveBeenCalledTimes(1)
+    expect(onMoveApplicant).toHaveBeenCalledWith(
+      interviewApplicant.id,
+      APPLICANT_STAGE.OFFER,
+    )
+  })
+
+  it('extends provider defaults with feedback that disables the drop animation', () => {
+    renderApplicantBoard([interviewApplicant])
+    const defaultPlugin = {}
+
+    expect(dragDropProvider.plugins).toBeTruthy()
+
+    const plugins = dragDropProvider.plugins?.([defaultPlugin])
+    expect(plugins).toHaveLength(2)
+    expect(plugins?.[0]).toBe(defaultPlugin)
+    expect(plugins?.[1]).toMatchObject({
+      plugin: Feedback,
+      options: { dropAnimation: null },
+    })
   })
 })

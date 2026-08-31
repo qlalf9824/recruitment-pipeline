@@ -5,5 +5,6 @@ export default defineConfig({
     environment: 'jsdom',
     clearMocks: true,
     restoreMocks: true,
+    setupFiles: ['src/testSetup.ts'],
   },
 })

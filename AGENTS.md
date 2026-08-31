@@ -36,9 +36,10 @@ Document only paths that currently exist.
 | `src/mocks/` | Contains immutable mock seed data factories. |
 | `src/services/` | Contains injected applicant persistence, API behavior, error, and orchestration services. |
 | `src/contexts/` | Contains the applicant API Context, Provider, consumer hook, and their tests. |
-| `src/hooks/` | Contains query hooks that adapt injected services for UI consumers. |
-| `src/components/` | Contains Tailwind-based presentation components for applicant loading, error, content, the recruitment-stage board, its columns, and applicant cards. |
+| `src/hooks/` | Contains applicant query and stage-mutation hooks that adapt injected services for UI consumers. |
+| `src/components/` | Contains Tailwind-based presentation components for applicant loading, error, content, the recruitment-stage board, its columns and cards, plus drag-and-drop adapters and drop validation. |
 | `src/styles.css` | Imports Tailwind CSS and defines the minimal application-wide base styles. |
+| `src/testSetup.ts` | Provides browser API test doubles required by jsdom component tests. |
 | `docs/superpowers/specs/` | Contains reviewed technical design specifications. |
 | `docs/superpowers/plans/` | Contains executable implementation plans. |
 | `public/` | Contains the `favicon.svg` and `icons.svg` static files. |
