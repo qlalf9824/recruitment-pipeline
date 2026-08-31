@@ -300,6 +300,54 @@
 
 ---
 
+### DEC-007: React Query 캐시 롤백과 Sonner 실패 피드백
+
+- 상태: 채택
+- 결정일: 2026-09-01
+- 관련 요구사항: `2.4 낙관적 업데이트와 실패 복구`
+- 관련 결정: `DEC-005`
+
+#### 1. 결정해야 했던 문제
+
+지원자 단계를 저장 응답 전에 화면에 반영하고 실패 시 정확히 복구하려면 낙관적 상태의 위치와 rollback 기준을 정해야 했다. 복구 사실을 화면 흐름을 막지 않으면서 전달할 snackbar 방식도 함께 선택해야 했다.
+
+#### 2. 고려한 선택지
+
+| 선택지 | 기대 효과 | 제약·위험 |
+| --- | --- | --- |
+| 컴포넌트 로컬 상태에서 임시 단계 관리 | query cache를 직접 수정하지 않음 | 조회 데이터와 임시 데이터의 결합·중복 제거·rollback을 UI가 직접 관리해야 함 |
+| React Query cache snapshot과 rollback 사용 | 기존 applicant query를 단일 화면 데이터로 유지하고 mutation lifecycle에서 복구 가능 | cache 갱신과 진행 중 query 취소를 정확히 구현해야 함 |
+| Sonner | 루트 Toaster 한 번과 `toast.error` 호출만으로 snackbar 제공 | 외부 UI 의존성이 추가됨 |
+| notistack | queue, action, variant와 Provider 설정이 풍부함 | 현재 단일 실패 알림 요구사항에 비해 설정과 API가 큼 |
+| react-hot-toast | 작은 API와 promise toast를 제공 | 현재 기본 표현과 설정 편의에서 Sonner 대비 추가 조정 이점이 적음 |
+
+#### 3. 최종 선택
+
+mutation의 `onMutate`에서 applicant query를 취소하고 현재 목록을 snapshot한 뒤 대상 지원자의 단계만 cache에서 즉시 변경한다. 저장 실패 시 `onError`에서 snapshot을 복원하고 Sonner의 error snackbar로 원상 복구 사실을 알린다. 성공과 실패 모두 `onSettled`에서 applicant query를 무효화해 저장소의 최종 상태와 다시 동기화한다. Sonner `Toaster`는 `App`에 한 번만 배치한다.
+
+#### 4. 선택 이유
+
+- 보드가 이미 React Query의 applicant 목록을 단일 데이터 원천으로 사용하므로 별도 임시 UI 상태가 필요하지 않다.
+- mutation 직전 전체 목록 snapshot은 실패 시 카드 누락·중복 없이 이동 전 상태를 복구한다.
+- 실패 후에도 재조회하면 localStorage에 저장된 실제 단계와 화면을 최종 동기화할 수 있다.
+- Sonner는 현재 필요한 단일 오류 snackbar를 적은 설정으로 제공한다.
+
+#### 5. Trade-off / 포기한 점
+
+- Sonner가 runtime dependency로 추가된다.
+- 현재는 mutation 진행 중 추가 이동을 차단하므로 여러 낙관적 이동을 동시에 병합하는 기능은 제공하지 않는다.
+- 전체 목록 snapshot 방식은 단일 mutation에는 명확하지만 연속·병렬 mutation을 지원할 때는 항목 단위 rollback 또는 mutation queue 재설계가 필요하다.
+
+#### 6. AI 제안 검토
+
+| AI 제안 내용 | 처리 결과 | 이유 |
+| --- | --- | --- |
+| React Query의 `onMutate`, `onError`, `onSettled`로 낙관적 갱신과 rollback 구성 | 채택 | 기존 query cache를 그대로 UI 원천으로 유지하면서 요구된 즉시 이동과 실패 복구를 구현함 |
+| Sonner, notistack, react-hot-toast 비교 후 Sonner 사용 | 채택 | 사용자가 설정이 간단한 점을 근거로 Sonner를 선택함 |
+| 별도 snackbar Context 또는 wrapper 추가 | 기각 | 현재 오류 알림 한 종류에는 불필요한 추상화임 |
+
+---
+
 ## 새 결정 템플릿
 
 ### DEC-<!-- 번호 -->: <!-- 결정 제목 -->
