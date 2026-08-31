@@ -37,7 +37,7 @@ Document only paths that currently exist.
 | `src/services/` | Contains injected applicant persistence, API behavior, error, and orchestration services. |
 | `src/contexts/` | Contains the applicant API Context, Provider, consumer hook, and their tests. |
 | `src/hooks/` | Contains query hooks that adapt injected services for UI consumers. |
-| `src/components/` | Contains presentation components for applicant loading, error, content, the Tailwind-based recruitment-stage board, its columns, and applicant cards. |
+| `src/components/` | Contains Tailwind-based presentation components for applicant loading, error, content, the recruitment-stage board, its columns, and applicant cards. |
 | `src/styles.css` | Imports Tailwind CSS and defines the minimal application-wide base styles. |
 | `docs/superpowers/specs/` | Contains reviewed technical design specifications. |
 | `docs/superpowers/plans/` | Contains executable implementation plans. |
