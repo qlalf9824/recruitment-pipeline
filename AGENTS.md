@@ -19,6 +19,13 @@ This document defines how AI coding agents must analyze and modify this reposito
 13. When an AI usage record is useful, propose content for `PROMPTS.md`. Base it only on actual requests, proposals, reviews, validation, and decisions.
 14. Create Git commits only when the user explicitly requests them. Do not mix separate features or independent scopes in one commit.
 
+## Git Commit Guidelines
+
+- Commit only on explicit request and after applicable validation passes.
+- Separate code and documentation commits, and keep each commit focused on one responsibility.
+- Use `type(scope): 한국어 요약`; write the body as Korean `- ` bullets with real line breaks, not literal `\n`.
+- Before committing `PROMPTS.md`, create the related code commits and update `관련 커밋` with their actual hashes.
+
 ## Current Structure
 
 Document only paths that currently exist.
